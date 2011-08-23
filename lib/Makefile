@@ -51,6 +51,7 @@ COBJS-$(CONFIG_SHA256) += sha256.o
 COBJS-y += string.o
 COBJS-y	+= strmhz.o
 COBJS-y += time.o
+COBJS-$(CONFIG_BOOTP_PXE) += uuid.o
 COBJS-y += vsprintf.o
 #COBJS-$(CONFIG_ZLIB) += zlib.o
 COBJS-$(CONFIG_RBTREE)	+= rbtree.o
