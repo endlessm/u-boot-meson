@@ -648,9 +648,7 @@ int strcmp_compar(const void *, const void *);
 void	udelay        (unsigned long);
 
 /* lib/uuid.c */
-void uuid_bin_to_str(unsigned char *uuid, char *str);
-int uuid_str_to_bin(char *uuid, unsigned char *out);
-int uuid_str_valid(const char *uuid);
+#include <uuid.h>
 
 /* lib/vsprintf.c */
 ulong	simple_strtoul(const char *cp,char **endp,unsigned int base);
