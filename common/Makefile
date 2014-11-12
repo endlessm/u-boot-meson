@@ -161,6 +161,7 @@ ifneq ($(CONFIG_NEXT_NAND),y)
 COBJS-$(CONFIG_CMD_MTDPARTS) += cmd_mtdparts.o
 COBJS-$(CONFIG_CMD_NAND) += cmd_nand.o
 endif
+COBJS-$(CONFIG_CMD_FS_UUID) += cmd_fs_uuid.o
 
 COBJS-$(CONFIG_SPI_NAND_COMPATIBLE) += cmd_interface.o
 COBJS-$(CONFIG_SPI_NAND_EMMC_COMPATIBLE) += cmd_interface.o
