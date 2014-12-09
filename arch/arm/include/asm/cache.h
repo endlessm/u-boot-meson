@@ -41,5 +41,27 @@ static inline void invalidate_l2_cache(void)
 
 void l2_cache_enable(void);
 void l2_cache_disable(void);
+int  l2_cache_status(void);
+void cache_flush(void);
+void dcache_flush(void);
+void flush_cache (unsigned long dummy1, unsigned long dummy2);
+
+void dcache_flush_range(unsigned start, unsigned size);
+void dcache_clean_range(unsigned start,unsigned size);
+void dcache_invalid_range(unsigned start, unsigned size);
+
+/* implemented in cache_v7.s */
+void _invalidate_dcache(void);
+void _clean_dcache(void);
+void _clean_invd_dcache(void);
+void _clean_dcache_addr(unsigned long addr);
+void _invalidate_dcache_addr2(unsigned long addr);
+void _invalidate_dcache_addr(unsigned long addr);
+void _clean_invd_dcache_addr(unsigned long addr);
+void _invalidate_icache(void);
+
+void icache_invalid(void);
+void dcache_invalid(void);
+void dcache_clean(void);
 
 #endif /* _ASM_CACHE_H */

@@ -18,7 +18,7 @@ struct serial_device {
 
 	struct serial_device *next;
 };
-
+extern int serial_register (struct serial_device *dev);
 extern struct serial_device serial_smc_device;
 extern struct serial_device serial_scc_device;
 extern struct serial_device * default_serial_console (void);

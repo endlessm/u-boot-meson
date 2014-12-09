@@ -159,6 +159,12 @@ uint32_t crc32_wd (uint32_t, const unsigned char *, uint, uint);
 static void genimg_print_time (time_t timestamp);
 #endif
 
+
+#include <linux/byteorder/little_endian.h>
+#include <asm/types.h>
+
+__u32 relocate_addr=0x20000000;
+
 /*****************************************************************************/
 /* Legacy format routines */
 /*****************************************************************************/
@@ -641,8 +647,13 @@ int genimg_get_format (void *img_addr)
 #endif
 
 	hdr = (const image_header_t *)img_addr;
+
 	if (image_check_magic(hdr))
 		format = IMAGE_FORMAT_LEGACY;
+#if defined (CONFIG_ANDROID_IMG)
+	else if (image_check_android_magic1(hdr) && image_check_android_magic2(hdr))
+		format = IMAGE_FORMAT_ANDROID;
+#endif
 #if defined(CONFIG_FIT) || defined(CONFIG_OF_LIBFDT)
 	else {
 		fit_hdr = (char *)img_addr;
@@ -763,6 +774,11 @@ int genimg_has_config (bootm_headers_t *images)
  *     1, if ramdisk image is found but corrupted, or invalid
  *     rd_start and rd_end are set to 0 if no ramdisk exists
  */
+#ifndef CONFIG_ANDROID_IMG
+#ifdef CONFIG_AML_MESON_FIT
+	unsigned int ramdisk_addr = ~0;
+#endif
+#endif
 int boot_get_ramdisk (int argc, char * const argv[], bootm_headers_t *images,
 		uint8_t arch, ulong *rd_start, ulong *rd_end)
 {
@@ -848,6 +864,14 @@ int boot_get_ramdisk (int argc, char * const argv[], bootm_headers_t *images,
 		}
 #endif
 
+#ifndef CONFIG_ANDROID_IMG
+#if defined(CONFIG_AML_MESON_FIT)
+		puts("Get ramdisk...\n");
+		printf("images.rd_start=0x%x\n",rd_addr);
+		if(ramdisk_addr != ~0)
+			rd_addr = ramdisk_addr;
+#endif
+#endif
 		/* copy from dataflash if needed */
 		rd_addr = genimg_get_image (rd_addr);
 
@@ -1049,11 +1073,21 @@ int boot_ramdisk_high (struct lmb *lmb, ulong rd_data, ulong rd_len,
 			*initrd_end = rd_data + rd_len;
 			lmb_reserve(lmb, rd_data, rd_len);
 		} else {
+
+#if defined(CONFIG_ANDROID_IMG) & defined(CONFIG_OF_LIBFDT)
+			if (initrd_high)
+				*initrd_start = (ulong)lmb_alloc_base (lmb, rd_len, 0x1000, relocate_addr);
+//				*initrd_start = (ulong)lmb_alloc_base (lmb, rd_len, 0x1000, initrd_high);
+			else
+				*initrd_start = (ulong)lmb_alloc_base (lmb, rd_len, 0x1000, relocate_addr);
+//				*initrd_start = (ulong)lmb_alloc (lmb, rd_len, 0x1000);
+#else
 			if (initrd_high)
 				*initrd_start = (ulong)lmb_alloc_base (lmb, rd_len, 0x1000, initrd_high);
 			else
 				*initrd_start = (ulong)lmb_alloc (lmb, rd_len, 0x1000);
 
+#endif
 			if (*initrd_start == 0) {
 				puts ("ramdisk - allocation error\n");
 				goto error;
@@ -1169,6 +1203,35 @@ static int fit_check_fdt (const void *fit, int fdt_noffset, int verify)
 #define CONFIG_SYS_FDT_PAD 0x3000
 #endif
 
+int get_relocate_addr(char **of_flat_tree, __u32 rd_len, __u32 ft_len)
+{
+    char* str;
+    int nodeoffset;
+    void *fdt_blob = *of_flat_tree;
+
+	if(fdt_check_header(fdt_blob)!= 0){
+        printf(" error: not a fdt\n");
+        return -1;
+    }
+
+	nodeoffset = fdt_path_offset(fdt_blob, "/memory");
+	if(nodeoffset < 0) {
+		printf(" dts: not find  node %s.\n",fdt_strerror(nodeoffset));
+		return -1;
+	}
+	str = fdt_getprop(fdt_blob, nodeoffset, "aml_reserved_end", NULL);
+	if(str == NULL){
+		printf("faild to get aml_reserved_end address\n");
+		printf("the default relocate ramdisk and fdt address-relocate_addr: 0x%x\n",relocate_addr);
+	}
+	else {
+		relocate_addr = __be32_to_cpup((__u32*)str) + 1 + ((rd_len + 0x1000 - 0x1)&(~(0x1000 - 0x1))) + ((ft_len + 0x1000 - 0x1)&(~(0x1000 - 0x1)))+CONFIG_SYS_FDT_PAD;
+		printf("From device tree /memory/ node aml_reserved_end property, for relocate ramdisk and fdt, relocate_addr: 0x%x\n",relocate_addr);
+	}
+
+	return 0;
+}
+
 /**
  * boot_relocate_fdt - relocate flat device tree
  * @lmb: pointer to lmb handle, will be used for memory mgmt
@@ -1208,9 +1271,15 @@ int boot_relocate_fdt (struct lmb *lmb, ulong bootmap_base,
 	/* position on a 4K boundary before the alloc_current */
 	/* Pad the FDT by a specified amount */
 	of_len = *of_size + CONFIG_SYS_FDT_PAD;
+	
+#if defined(CONFIG_ANDROID_IMG) & defined(CONFIG_OF_LIBFDT)	
+	of_start = (void *)(unsigned long)lmb_alloc_base(lmb, of_len, 0x1000, relocate_addr);
+//	of_start = (void *)(unsigned long)lmb_alloc_base(lmb, of_len, 0x1000,
+//			(CONFIG_SYS_BOOTMAPSZ + bootmap_base));
+#else
 	of_start = (void *)(unsigned long)lmb_alloc_base(lmb, of_len, 0x1000,
 			(CONFIG_SYS_BOOTMAPSZ + bootmap_base));
-
+#endif
 	if (of_start == 0) {
 		puts("device tree - allocation error\n");
 		goto error;
@@ -1348,6 +1417,14 @@ int boot_get_fdt (int flag, int argc, char * const argv[], bootm_headers_t *imag
 		debug ("## Checking for 'FDT'/'FDT Image' at %08lx\n",
 				fdt_addr);
 
+#if defined(CONFIG_ANDROID_IMG) & defined(CONFIG_OF_LIBFDT)
+#if defined(CONFIG_AML_MESON_FIT)
+		puts("Get ramdisk...\n");
+		printf("images.rd_start=0x%x\n",rd_addr);
+		if(ramdisk_addr != ~0)
+			rd_addr = ramdisk_addr;
+#endif
+#endif
 		/* copy from dataflash if needed */
 		fdt_addr = genimg_get_image (fdt_addr);
 
@@ -1849,6 +1926,11 @@ void fit_print_contents (const void *fit)
  * returns:
  *     no returned results
  */
+#ifndef CONFIG_ANDROID_IMG
+#ifdef CONFIG_AML_MESON_FIT
+extern unsigned int ramdisk_addr;
+#endif
+#endif
 void fit_image_print (const void *fit, int image_noffset, const char *p)
 {
 	char *desc;
@@ -1882,6 +1964,15 @@ void fit_image_print (const void *fit, int image_noffset, const char *p)
 		printf ("unavailable\n");
 	else
 		printf ("0x%08lx\n", (ulong)data);
+#ifndef CONFIG_ANDROID_IMG
+#ifdef CONFIG_AML_MESON_FIT
+	if(!strcmp("RAMDisk Image",genimg_get_type_name (type)))//Get the ramdisk addr
+	{
+		ramdisk_addr = data;
+		return;
+	}
+#endif
+#endif//CONFIG_ANDROID_IMG
 #endif
 
 	printf ("%s  Data Size:    ", p);
@@ -3034,6 +3125,12 @@ void fit_conf_print (const void *fit, int noffset, const char *p)
 static int fit_check_ramdisk (const void *fit, int rd_noffset, uint8_t arch, int verify)
 {
 	fit_image_print (fit, rd_noffset, "   ");
+#ifndef CONFIG_ANDROID_IMG
+#ifdef CONFIG_AML_MESON_FIT
+	if (ramdisk_addr != ~0)//Getted addr, we just return.
+		return 0;
+#endif
+#endif
 
 	if (verify) {
 		puts ("   Verifying Hash Integrity ... ");

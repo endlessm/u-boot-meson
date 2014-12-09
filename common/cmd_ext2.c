@@ -244,6 +244,12 @@ int do_ext2load (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	/* Loading ok, update default load address */
 	load_addr = addr;
 
+#ifdef CONFIG_AML_SECU_BOOT_V2
+	extern int g_nIMGReadFlag;
+	g_nIMGReadFlag = 0;
+#endif //#ifdef CONFIG_AML_SECU_BOOT_V2
+
+
 	printf ("%d bytes read\n", filelen);
 	sprintf(buf, "%X", filelen);
 	setenv("filesize", buf);

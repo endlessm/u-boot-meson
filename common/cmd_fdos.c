@@ -91,6 +91,11 @@ int do_fdosboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	return 1;
     }
     flush_cache (load_addr, size);
+	
+#ifdef CONFIG_AML_SECU_BOOT_V2
+	extern int g_nIMGReadFlag;
+	g_nIMGReadFlag = 0;
+#endif //#ifdef CONFIG_AML_SECU_BOOT_V2
 
     sprintf(buf, "%x", size);
     setenv("filesize", buf);

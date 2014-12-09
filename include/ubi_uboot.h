@@ -169,6 +169,25 @@ struct cdev {
 	int owner;
 	dev_t dev;
 };
+
+struct attribute {
+	const char		*name;
+	mode_t			mode;
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lock_class_key	*key;
+	struct lock_class_key	skey;
+#endif
+};
+
+/* interface for exporting device attributes */
+struct device_attribute {
+	struct attribute	attr;
+	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count);
+};
+
 #define cdev_init(...)		do { } while (0)
 #define cdev_add(...)		0
 #define cdev_del(...)		do { } while (0)
@@ -190,6 +209,11 @@ static inline long IS_ERR(const void *ptr)
 {
 	return IS_ERR_VALUE((unsigned long)ptr);
 }
+static inline long IS_ERR_OR_NULL(const void *ptr)
+{
+	return !ptr || IS_ERR_VALUE((unsigned long)ptr);
+}
+
 
 /* Force a compilation error if condition is true */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))

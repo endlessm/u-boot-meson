@@ -23,7 +23,14 @@
 
 include $(TOPDIR)/config.mk
 
-HOSTSRCS := $(obj)crc32.c  fw_env.c  fw_env_main.c
+ifdef CONFIG_AML_MESON 
+HOSTSRCS	:=  fw_env_aml.c 
+HOSTCC = arm-none-linux-gnueabi-gcc
+else
+HOSTSRCS := fw_env.c 
+endif
+
+HOSTSRCS += $(obj)crc32.c  fw_env_main.c
 HEADERS	:= fw_env.h
 
 # Compile for a hosted environment on the target
@@ -38,6 +45,8 @@ endif
 
 all:	$(obj)fw_printenv
 
+#ln -s $(obj)fw_printenv $(obj)fw_setenv
+	
 # Some files complain if compiled with -pedantic, use HOSTCFLAGS_NOPED
 $(obj)fw_printenv:	$(HOSTSRCS) $(HEADERS)
 	$(HOSTCC) $(HOSTCFLAGS_NOPED) $(HOSTLDFLAGS) -o $@ $(HOSTSRCS)

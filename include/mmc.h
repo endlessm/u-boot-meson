@@ -76,6 +76,17 @@
 #define MMC_CMD_WRITE_MULTIPLE_BLOCK	25
 #define MMC_CMD_APP_CMD			55
 
+#define MMC_TAG_SECTOR_START            32	// R1
+#define MMC_TAG_SECTOR_END              33	// R1
+#define MMC_UNTAG_SECTOR                34	// R1
+#define MMC_TAG_ERASE_GROUP_START       35	// R1
+#define MMC_TAG_ERASE_GROUP_END         36	// R1
+#define MMC_UNTAG_ERASE_GROUP           37	// R1
+#define SD_MMC_ERASE                    38	// R1b
+
+#define SD_ERASE_WR_BLK_START           32	//  R1
+#define SD_ERASE_WR_BLK_END             33	//   R1
+
 #define SD_CMD_SEND_RELATIVE_ADDR	3
 #define SD_CMD_SWITCH_FUNC		6
 #define SD_CMD_SEND_IF_COND		8
@@ -128,11 +139,13 @@
  * EXT_CSD fields
  */
 
+#define EXT_CSD_PART_CONFIG	179	/* R/W */
 #define EXT_CSD_BUS_WIDTH	183	/* R/W */
 #define EXT_CSD_HS_TIMING	185	/* R/W */
 #define EXT_CSD_CARD_TYPE	196	/* RO */
 #define EXT_CSD_REV		192	/* RO */
 #define EXT_CSD_SEC_CNT		212	/* RO, 4 bytes */
+#define EXT_CSD_BOOT_MULT	226	/* RO */
 
 /*
  * EXT_CSD field definitions
@@ -157,6 +170,9 @@
 #define MMC_RSP_CRC     (1 << 2)                /* expect valid crc */
 #define MMC_RSP_BUSY    (1 << 3)                /* card may send busy */
 #define MMC_RSP_OPCODE  (1 << 4)                /* response contains opcode */
+#define MMC_RSP_R5_FLAG  (1 << 5)
+#define MMC_RSP_R6_FLAG  (1 << 6)
+#define MMC_RSP_R7_FLAG  (1 << 7)
 
 #define MMC_RSP_NONE    (0)
 #define MMC_RSP_R1      (MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
@@ -165,9 +181,46 @@
 #define MMC_RSP_R2      (MMC_RSP_PRESENT|MMC_RSP_136|MMC_RSP_CRC)
 #define MMC_RSP_R3      (MMC_RSP_PRESENT)
 #define MMC_RSP_R4      (MMC_RSP_PRESENT)
-#define MMC_RSP_R5      (MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
-#define MMC_RSP_R6      (MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
-#define MMC_RSP_R7      (MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE)
+#define MMC_RSP_R5      (MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE|MMC_RSP_R5_FLAG)
+#define MMC_RSP_R6      (MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE|MMC_RSP_R6_FLAG)
+#define MMC_RSP_R7      (MMC_RSP_PRESENT|MMC_RSP_CRC|MMC_RSP_OPCODE|MMC_RSP_R7_FLAG)
+
+
+#define R1_OUT_OF_RANGE		(1 << 31)	/* er, c */
+#define R1_ADDRESS_ERROR	(1 << 30)	/* erx, c */
+#define R1_BLOCK_LEN_ERROR	(1 << 29)	/* er, c */
+#define R1_ERASE_SEQ_ERROR      (1 << 28)	/* er, c */
+#define R1_ERASE_PARAM		(1 << 27)	/* ex, c */
+#define R1_WP_VIOLATION		(1 << 26)	/* erx, c */
+#define R1_CARD_IS_LOCKED	(1 << 25)	/* sx, a */
+#define R1_LOCK_UNLOCK_FAILED	(1 << 24)	/* erx, c */
+#define R1_COM_CRC_ERROR	(1 << 23)	/* er, b */
+#define R1_ILLEGAL_COMMAND	(1 << 22)	/* er, b */
+#define R1_CARD_ECC_FAILED	(1 << 21)	/* ex, c */
+#define R1_CC_ERROR		(1 << 20)	/* erx, c */
+#define R1_ERROR		(1 << 19)	/* erx, c */
+#define R1_UNDERRUN		(1 << 18)	/* ex, c */
+#define R1_OVERRUN		(1 << 17)	/* ex, c */
+#define R1_CID_CSD_OVERWRITE	(1 << 16)	/* erx, c, CID/CSD overwrite */
+#define R1_WP_ERASE_SKIP	(1 << 15)	/* sx, c */
+#define R1_CARD_ECC_DISABLED	(1 << 14)	/* sx, a */
+#define R1_ERASE_RESET		(1 << 13)	/* sr, c */
+#define R1_STATUS(x)            (x & 0xFFFFE000)
+#define R1_CURRENT_STATE(x)	((x & 0x00001E00) >> 9)	/* sx, b (4 bits) */
+#define R1_READY_FOR_DATA	(1 << 8)	/* sx, a */
+#define R1_SWITCH_ERROR		(1 << 7)	/* sx, c */
+#define R1_EXCEPTION_EVENT	(1 << 6)	/* sx, a */
+#define R1_APP_CMD		(1 << 5)	/* sr, c */
+
+#define R1_STATE_IDLE	0
+#define R1_STATE_READY	1
+#define R1_STATE_IDENT	2
+#define R1_STATE_STBY	3
+#define R1_STATE_TRAN	4
+#define R1_STATE_DATA	5
+#define R1_STATE_RCV	6
+#define R1_STATE_PRG	7
+#define R1_STATE_DIS	8
 
 
 struct mmc_cid {
@@ -233,7 +286,7 @@ struct mmc_cmd {
 	ushort cmdidx;
 	uint resp_type;
 	uint cmdarg;
-	uint response[4];
+	char response[18];
 	uint flags;
 };
 
@@ -247,12 +300,21 @@ struct mmc_data {
 	uint blocksize;
 };
 
+#ifdef CONFIG_MMC_DEVICE
+struct mmc_device{
+	char name[32];
+	uint type;
+	uint dev_num;
+};
+#endif
+
 struct mmc {
 	struct list_head link;
 	char name[32];
 	void *priv;
 	uint voltages;
 	uint version;
+	//uint has_init;
 	uint f_min;
 	uint f_max;
 	int high_capacity;
@@ -263,13 +325,25 @@ struct mmc {
 	uint ocr;
 	uint scr[2];
 	uint csd[4];
-	uint cid[4];
+	char cid[16];
 	ushort rca;
 	uint tran_speed;
 	uint read_bl_len;
 	uint write_bl_len;
 	u64 capacity;
+	u64 boot_size;
 	block_dev_desc_t block_dev;
+#ifdef CONFIG_SECURE_MMC
+	uint storage_protect;
+	struct mmc_storage_info_t *mmc_storage_info;
+#endif
+#ifdef CONFIG_MMC_DEVICE
+	mmc_device *device;
+#endif
+#ifdef CONFIG_SECURITYKEY
+	uint key_protect;
+	struct aml_emmckey_info_t *aml_emmckey_info;
+#endif
 	int (*send_cmd)(struct mmc *mmc,
 			struct mmc_cmd *cmd, struct mmc_data *data);
 	void (*set_ios)(struct mmc *mmc);
@@ -277,8 +351,10 @@ struct mmc {
 #ifdef CONFIG_MMC_MBLOCK
 	uint b_max;
 #endif
+    uint is_inited; // is initialize?
 };
 
+extern struct list_head mmc_devices;
 int mmc_register(struct mmc *mmc);
 int mmc_initialize(bd_t *bis);
 int mmc_init(struct mmc *mmc);
@@ -288,6 +364,8 @@ struct mmc *find_mmc_device(int dev_num);
 int mmc_set_dev(int dev_num);
 void print_mmc_devices(char separator);
 int board_mmc_getcd(u8 *cd, struct mmc *mmc);
+int mmc_switch_partition(struct mmc* mmc, unsigned int part);
+int mmc_send_ext_csd(struct mmc *mmc, char *ext_csd);
 
 #ifdef CONFIG_GENERIC_MMC
 int atmel_mci_init(void *regs);

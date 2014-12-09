@@ -36,6 +36,8 @@ SPLIB-$(CONFIG_HAS_POST) += $(shell if [ -d lib_$(ARCH)/fpu ]; then echo \
 			    "lib_$(ARCH)/fpu/libpost$(ARCH)fpu.o"; fi)
 SPLIB-$(CONFIG_HAS_POST) += $(shell if [ -d cpu/$(CPU) ]; then echo \
 			    "cpu/$(CPU)/libpost$(CPU).o"; fi)
+SPLIB-$(CONFIG_HAS_POST) += $(shell if [ -d cpu/$(SOC) ]; then echo \
+			    "cpu/$(SOC)/libpost$(SOC).o"; fi)
 SPLIB-$(CONFIG_HAS_POST) += $(shell if [ -d board/$(BOARD) ]; then echo \
 			    "board/$(BOARD)/libpost$(BOARD).o"; fi)
 

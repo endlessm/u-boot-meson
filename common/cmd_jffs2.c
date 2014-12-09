@@ -530,6 +530,12 @@ int do_jffs2_fsload(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				fsname, size, offset);
 			sprintf(buf, "%x", size);
 			setenv("filesize", buf);
+			
+#ifdef CONFIG_AML_SECU_BOOT_V2
+    	    extern int g_nIMGReadFlag;
+	        g_nIMGReadFlag = 0;
+#endif //#ifdef CONFIG_AML_SECU_BOOT_V2
+
 		} else {
 			printf("### %s LOAD ERROR<%x> for %s!\n", fsname, size, filename);
 		}

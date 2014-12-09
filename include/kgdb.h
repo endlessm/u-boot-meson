@@ -2,6 +2,7 @@
 #define __KGDB_H__
 
 #include <asm/ptrace.h>
+#include <asm/kgdb.h>
 
 #define KGDBERR_BADPARAMS	1
 #define KGDBERR_NOTHEXDIG	2

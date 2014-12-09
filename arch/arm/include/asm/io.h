@@ -432,6 +432,36 @@ out:
 
 #define isa_check_signature(io,sig,len)	(0)
 
+static __inline__ uint32_t aml_read_reg32(uint32_t _reg)
+{
+	return readl((volatile void *)_reg);
+};
+static __inline__ void aml_write_reg32( uint32_t _reg, const uint32_t _value)
+{
+	writel( _value,(volatile void *)_reg );
+};
+static __inline__ void aml_set_reg32_bits(uint32_t _reg, const uint32_t _value, const uint32_t _start, const uint32_t _len)
+{
+	writel(( (readl((volatile void *)_reg) & ~((( 1L << (_len) )-1) << (_start))) | ((unsigned)((_value)&((1L<<(_len))-1)) << (_start))), (volatile void *)_reg );
+}
+static __inline__ void aml_clrset_reg32_bits(uint32_t _reg, const uint32_t clr, const uint32_t set)
+{
+	writel((readl((volatile void *)_reg) & ~(clr)) | (set), (volatile void *)_reg );
+}
+
+static __inline__ uint32_t aml_get_reg32_bits(uint32_t _reg, const uint32_t _start, const uint32_t _len)
+{
+	return	( (readl((volatile void *)_reg) >> (_start)) & (( 1L << (_len) ) - 1) );
+}
+static __inline__ void aml_set_reg32_mask( uint32_t _reg, const uint32_t _mask )
+{
+		writel( (readl((volatile void *)_reg) | (_mask) ), (volatile void *)_reg );
+}
+static __inline__ void aml_clr_reg32_mask( uint32_t _reg, const uint32_t _mask)
+{
+		writel( (readl((volatile void *)_reg) & (~(_mask)) ), (volatile void *)_reg );
+}
+
 #endif	/* __mem_isa */
 #endif	/* __KERNEL__ */
 #endif	/* __ASM_ARM_IO_H */

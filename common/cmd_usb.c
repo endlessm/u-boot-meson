@@ -490,6 +490,11 @@ int do_usbboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	flush_cache(addr, (cnt+1)*info.blksz);
 
+#ifdef CONFIG_AML_SECU_BOOT_V2
+	extern int g_nIMGReadFlag;
+	g_nIMGReadFlag = 0;
+#endif //#ifdef CONFIG_AML_SECU_BOOT_V2
+
 	/* Check if we should attempt an auto-start */
 	if (((ep = getenv("autostart")) != NULL) && (strcmp(ep, "yes") == 0)) {
 		char *local_args[2];
@@ -503,7 +508,6 @@ int do_usbboot(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 }
 #endif /* CONFIG_USB_STORAGE */
 
-
 /******************************************************************************
  * usb command intepreter
  */
@@ -511,6 +515,7 @@ int do_usb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 
 	int i;
+	int usb_index = 0;
 	struct usb_device *dev = NULL;
 	extern char usb_started;
 #ifdef CONFIG_USB_STORAGE
@@ -520,11 +525,14 @@ int do_usb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc < 2)
 		return cmd_usage(cmdtp);
 
+	if(argc == 3) 
+		usb_index = (int)simple_strtoul(argv[2], NULL, 16);
+
 	if ((strncmp(argv[1], "reset", 5) == 0) ||
 		 (strncmp(argv[1], "start", 5) == 0)) {
 		usb_stop();
-		printf("(Re)start USB...\n");
-		i = usb_init();
+		printf("(Re)start USB(%d)...\n",usb_index);
+		i = usb_init(usb_index);
 		if (i >= 0) {
 #ifdef CONFIG_USB_STORAGE
 			/* try to recognize storage devices immediately */
@@ -705,6 +713,19 @@ int do_usb(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #endif /* CONFIG_USB_STORAGE */
 	return cmd_usage(cmdtp);
 }
+
+#include <asm/arch/usb.h>
+int do_usbbc(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	board_usb_start(BOARD_USB_MODE_CHARGER,0);
+	board_usb_stop(BOARD_USB_MODE_CHARGER,0);
+	return 0;
+}
+U_BOOT_CMD(
+	usbbc,	3,	1,	do_usbbc,
+	"test usb bc",
+	"loadAddr dev:part"
+);
 
 #ifdef CONFIG_USB_STORAGE
 U_BOOT_CMD(

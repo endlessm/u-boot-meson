@@ -38,8 +38,7 @@ struct nand_flash_dev;
 extern int nand_scan (struct mtd_info *mtd, int max_chips);
 /* Separate phases of nand_scan(), allowing board driver to intervene
  * and override command or ECC setup according to flash type */
-extern int nand_scan_ident(struct mtd_info *mtd, int max_chips,
-			   const struct nand_flash_dev *table);
+extern int nand_scan_ident(struct mtd_info *mtd, int max_chips);
 extern int nand_scan_tail(struct mtd_info *mtd);
 
 /* Free resources held by the NAND device */
@@ -52,8 +51,8 @@ extern void nand_wait_ready(struct mtd_info *mtd);
  * is supported now. If you add a chip with bigger oobsize/page
  * adjust this accordingly.
  */
-#define NAND_MAX_OOBSIZE	218
-#define NAND_MAX_PAGESIZE	4096
+#define NAND_MAX_OOBSIZE	448
+#define NAND_MAX_PAGESIZE	8192
 
 /*
  * Constants for hardware specific CLE/ALE/NCE function
@@ -391,7 +390,9 @@ struct nand_chip {
 	int		(*errstat)(struct mtd_info *mtd, struct nand_chip *this, int state, int status, int page);
 	int		(*write_page)(struct mtd_info *mtd, struct nand_chip *chip,
 				      const uint8_t *buf, int page, int cached, int raw);
-
+	
+	int		(*nand_block_bad_scrub_update_bbt)(struct mtd_info *mtd);
+	
 	int		chip_delay;
 	unsigned int	options;
 
@@ -441,6 +442,8 @@ struct nand_chip {
 #define NAND_MFR_HYNIX		0xad
 #define NAND_MFR_MICRON		0x2c
 #define NAND_MFR_AMD		0x01
+#define NAND_MFR_INTEL		0x89
+#define NAND_MFR_SANDISK		0x45 
 
 /**
  * struct nand_flash_dev - NAND Flash Device ID Structure
@@ -512,6 +515,8 @@ struct platform_nand_chip {
 	int			chip_delay;
 	unsigned int		options;
 	const char		**part_probe_types;
+	void			(*set_parts)(uint64_t size,
+					struct platform_nand_chip *chip);
 	void			*priv;
 };
 

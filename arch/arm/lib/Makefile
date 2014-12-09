@@ -39,11 +39,24 @@ GLCOBJS	+= div0.o
 COBJS-y	+= board.o
 COBJS-y	+= bootm.o
 COBJS-y	+= cache.o
+ifndef CONFIG_L2_OFF
+COBJS-y += cache-l2x0.o 
+endif
+ifndef CONFIG_DCACHE_OFF
+SOBJS-y += cache_init.o
+SOBJS-y += cache_v7.o
+else ifndef CONFIG_ICACHE_OFF
+SOBJS-y += cache_init.o
+SOBJS-y += cache_v7.o
+endif
 ifndef CONFIG_SYS_NO_CP15_CACHE
 COBJS-y	+= cache-cp15.o
 endif
 COBJS-y	+= interrupts.o
 COBJS-y	+= reset.o
+COBJS-$(CONFIG_CMD_KGDB) += kgdb.o
+
+COBJS-$(CONFIG_POST_AML) += tests.o
 
 SRCS	:= $(GLSOBJS:.o=.S) $(GLCOBJS:.o=.c) \
 	   $(SOBJS-y:.o=.S) $(COBJS-y:.o=.c)
@@ -60,9 +73,9 @@ TARGETS	+= $(LIBGCC)
 endif
 
 # For EABI conformant tool chains, provide eabi_compat()
-ifneq (,$(findstring -mabi=aapcs-linux,$(PLATFORM_CPPFLAGS)))
+#ifneq (,$(findstring -mabi=aapcs-linux,$(PLATFORM_CPPFLAGS)))
 TARGETS	+= $(obj)eabi_compat.o
-endif
+#endif
 
 all:	$(TARGETS)
 

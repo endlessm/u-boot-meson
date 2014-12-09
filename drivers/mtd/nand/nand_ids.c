@@ -40,7 +40,7 @@ const struct nand_flash_dev nand_flash_ids[] = {
 	{"NAND 8MiB 3,3V 8-bit",	0xe6, 512, 8, 0x2000, 0},
 	{"NAND 8MiB 1,8V 16-bit",	0x49, 512, 8, 0x2000, NAND_BUSWIDTH_16},
 	{"NAND 8MiB 3,3V 16-bit",	0x59, 512, 8, 0x2000, NAND_BUSWIDTH_16},
-#endif
+
 
 	{"NAND 16MiB 1,8V 8-bit",	0x33, 512, 16, 0x4000, 0},
 	{"NAND 16MiB 3,3V 8-bit",	0x73, 512, 16, 0x4000, 0},
@@ -125,7 +125,7 @@ const struct nand_flash_dev nand_flash_ids[] = {
 	 NAND_IS_AND | NAND_NO_AUTOINCR |NAND_NO_READRDY | NAND_4PAGE_ARRAY |
 	 BBT_AUTO_REFRESH
 	},
-
+#endif
 	{NULL,}
 };
 
@@ -142,5 +142,6 @@ const struct nand_manufacturers nand_manuf_ids[] = {
 	{NAND_MFR_HYNIX, "Hynix"},
 	{NAND_MFR_MICRON, "Micron"},
 	{NAND_MFR_AMD, "AMD"},
+	{NAND_MFR_SANDISK, "Sandisk"},
 	{0x0, "Unknown"}
 };

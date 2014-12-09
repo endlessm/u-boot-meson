@@ -31,13 +31,13 @@
 
 #define INODE_LOCKED_MAX	64
 
-struct super_block *ubifs_sb;
-static struct inode *inodes_locked_down[INODE_LOCKED_MAX];
+struct super_block *ubifs_sb=0;
+static struct inode *inodes_locked_down[INODE_LOCKED_MAX]={0};
 
 /* shrinker.c */
 
 /* List of all UBIFS file-system instances */
-struct list_head ubifs_infos;
+struct list_head ubifs_infos={0};
 
 /* linux/fs/super.c */
 

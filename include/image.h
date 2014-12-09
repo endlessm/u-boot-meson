@@ -196,6 +196,38 @@ typedef struct image_info {
 	uint8_t		comp, type, os;		/* compression, type of image, os type */
 } image_info_t;
 
+#if defined(CONFIG_ANDROID_IMG)
+typedef struct boot_img_hdr boot_img_hdr;
+
+#define BOOT_MAGIC "ANDROID!"
+#define BOOT_MAGIC_SIZE 8
+#define BOOT_NAME_SIZE 16
+#define BOOT_ARGS_SIZE 512
+
+struct boot_img_hdr
+{
+    unsigned char magic[BOOT_MAGIC_SIZE];
+
+    unsigned kernel_size;  /* size in bytes */
+    unsigned kernel_addr;  /* physical load addr */
+
+    unsigned ramdisk_size; /* size in bytes */
+    unsigned ramdisk_addr; /* physical load addr */
+
+    unsigned second_size;  /* size in bytes */
+    unsigned second_addr;  /* physical load addr */
+
+    unsigned tags_addr;    /* physical addr for kernel tags */
+    unsigned page_size;    /* flash page size we assume */
+    unsigned unused[2];    /* future expansion: should be 0 */
+
+    unsigned char name[BOOT_NAME_SIZE]; /* asciiz product name */
+    
+    unsigned char cmdline[BOOT_ARGS_SIZE];
+
+    unsigned id[8]; /* timestamp / checksum / sha1 / etc */
+};
+#endif
 /*
  * Legacy and FIT format headers used by do_bootm() and do_bootm_<os>()
  * routines.
@@ -295,6 +327,7 @@ typedef struct table_entry {
 	char	*lname;		/* long (output) name to print for messages */
 } table_entry_t;
 
+int get_relocate_addr(char **of_flat_tree, __u32 rd_len, __u32 ft_len);
 /*
  * get_table_entry_id() scans the translation table trying to find an
  * entry that matches the given short name. If a matching entry is
@@ -324,6 +357,7 @@ void genimg_print_size (uint32_t size);
 #define IMAGE_FORMAT_INVALID	0x00
 #define IMAGE_FORMAT_LEGACY	0x01	/* legacy image_header based format */
 #define IMAGE_FORMAT_FIT	0x02	/* new, libfdt based format */
+#define IMAGE_FORMAT_ANDROID 0x03	/* android mkbootimg format */
 
 int genimg_get_format (void *img_addr);
 int genimg_has_config (bootm_headers_t *images);
@@ -460,6 +494,17 @@ static inline int image_check_magic (const image_header_t *hdr)
 {
 	return (image_get_magic (hdr) == IH_MAGIC);
 }
+#ifdef CONFIG_ANDROID_IMG
+/*0x414e4452 0x4f494421 is 'ANDROID!'*/
+static inline int image_check_android_magic1 (const image_header_t *hdr)
+{
+	return (image_get_magic (hdr) == 0x414e4452);
+}
+static inline int image_check_android_magic2 (const image_header_t *hdr)
+{
+	return (image_get_hcrc (hdr) == 0x4f494421);
+}
+#endif
 static inline int image_check_type (const image_header_t *hdr, uint8_t type)
 {
 	return (image_get_type (hdr) == type);

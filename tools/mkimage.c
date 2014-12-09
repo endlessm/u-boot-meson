@@ -366,7 +366,7 @@ NXTARG:		;
 		exit (EXIT_FAILURE);
 	}
 
-	if (params.type == IH_TYPE_MULTI || params.type == IH_TYPE_SCRIPT) {
+	if (params.type == IH_TYPE_MULTI || params.type == IH_TYPE_SCRIPT ) {
 		char *file = params.datafile;
 		uint32_t size;
 
@@ -421,7 +421,24 @@ NXTARG:		;
 				break;
 			}
 		}
-	} else {
+	} else if(params.type == IH_TYPE_RAMDISK)
+	{
+		char *file = params.datafile;
+
+		for (;;) {
+			char *sep = strchr(file, ':');
+			if (sep) {
+				*sep = '\0';
+				copy_file (ifd, file, 1);
+				*sep++ = ':';
+				file = sep;
+			} else {
+				copy_file (ifd, file, 0);
+				break;
+			}
+		}
+	}
+	else{
 		copy_file (ifd, params.datafile, 0);
 	}
 

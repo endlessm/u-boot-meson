@@ -65,7 +65,10 @@ BIN_FILES-$(CONFIG_INCA_IP) += inca-swap-bytes$(SFX)
 BIN_FILES-y += mkimage$(SFX)
 BIN_FILES-$(CONFIG_NETCONSOLE) += ncb$(SFX)
 BIN_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1$(SFX)
-
+BIN_FILES-$(CONFIG_AML_MESON)	+=convert$(SFX)
+BIN_FILES-$(CONFIG_UCL) +=uclpack$(SFX)
+BIN_FILES-$(CONFIG_AML_SUSPEND) +=bin2code$(SFX)
+BIN_FILES-$(CONFIG_JOIN_UBOOT_SECUREOS) += join_uboot_secureos$(SFX)
 # Source files which exist outside the tools directory
 EXT_OBJ_FILES-y += common/env_embedded.o
 EXT_OBJ_FILES-y += common/image.o
@@ -88,7 +91,10 @@ NOPED_OBJ_FILES-y += mkimage.o
 OBJ_FILES-$(CONFIG_NETCONSOLE) += ncb.o
 NOPED_OBJ_FILES-y += os_support.o
 OBJ_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1.o
-
+OBJ_FILES-$(CONFIG_AML_MESON)	+=convert.o m1_romboot.o a3_romboot.o m3_romboot.o m6_romboot.o m8_romboot.o m6tvd_romboot.o
+OBJ_FILES-$(CONFIG_UCL) += uclpack.o
+OBJ_FILES-$(CONFIG_AML_SUSPEND) += bin2code.o
+OBJ_FILES-$(CONFIG_JOIN_UBOOT_SECUREOS) += join_uboot_secureos.o
 # Don't build by default
 #ifeq ($(ARCH),ppc)
 #BIN_FILES-y += mpc86x_clk$(SFX)
@@ -101,6 +107,7 @@ LIBFDT_OBJ_FILES-y += fdt_ro.o
 LIBFDT_OBJ_FILES-y += fdt_rw.o
 LIBFDT_OBJ_FILES-y += fdt_strerror.o
 LIBFDT_OBJ_FILES-y += fdt_wip.o
+LIBUCL_FILE = $(obj)ucl_linux/libucl_linux.a
 
 # Generated LCD/video logo
 LOGO_H = $(OBJTREE)/include/bmp_logo.h
@@ -199,7 +206,20 @@ $(obj)ncb$(SFX):	$(obj)ncb.o
 
 $(obj)ubsha1$(SFX):	$(obj)os_support.o $(obj)sha1.o $(obj)ubsha1.o
 	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
+$(obj)convert$(SFX): $(obj)convert.o \
+										$(obj)m1_romboot.o $(obj)a3_romboot.o $(obj)m3_romboot.o $(obj)m6_romboot.o $(obj)m8_romboot.o $(obj)m6tvd_romboot.o
+	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
+$(obj)uclpack$(SFX): $(obj)uclpack.o $(LIBUCL_FILE)
+	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
 
+$(obj)join_uboot_secureos$(SFX): $(obj)join_uboot_secureos.o
+	$(HOSTCC) $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
+$(LIBUCL_FILE):
+	make -C ucl
+
+$(obj)bin2code$(SFX): $(obj)bin2code.o
+	$(HOSTCC) -g $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
+		
 # Some of the tool objects need to be accessed from outside the tools directory
 $(obj)%.o: $(SRCTREE)/common/%.c
 	$(HOSTCC) -g $(HOSTCFLAGS_NOPED) -c -o $@ $<

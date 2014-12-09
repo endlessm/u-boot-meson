@@ -25,7 +25,11 @@ include $(TOPDIR)/config.mk
 
 LIB	:= $(obj)libspi_flash.o
 
+ifdef CONFIG_AMLOGIC_SPI_FLASH
+COBJS-$(CONFIG_SPI_FLASH)	+= spi_flash_amlogic.o
+else
 COBJS-$(CONFIG_SPI_FLASH)	+= spi_flash.o
+endif
 COBJS-$(CONFIG_SPI_FLASH_ATMEL)	+= atmel.o
 COBJS-$(CONFIG_SPI_FLASH_EON)	+= eon.o
 COBJS-$(CONFIG_SPI_FLASH_MACRONIX)	+= macronix.o
@@ -35,6 +39,9 @@ COBJS-$(CONFIG_SPI_FLASH_STMICRO)	+= stmicro.o
 COBJS-$(CONFIG_SPI_FLASH_WINBOND)	+= winbond.o
 COBJS-$(CONFIG_SPI_FRAM_RAMTRON)	+= ramtron.o
 COBJS-$(CONFIG_SPI_M95XXX) += eeprom_m95xxx.o
+COBJS-$(CONFIG_SPI_FLASH_GIGADEVICE) += gigadevice.o
+COBJS-$(CONFIG_SPI_FLASH_PMDEVICE) += pmdevice.o
+COBJS-$(CONFIG_SPI_NOR_SECURE_STORAGE) += spi_secure_storage.o
 
 COBJS	:= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)

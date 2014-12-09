@@ -35,8 +35,8 @@
 
 #include "../fs/ubifs/ubifs.h"
 
-static int ubifs_initialized;
-static int ubifs_mounted;
+static int ubifs_initialized=0;
+static int ubifs_mounted=0;
 
 extern struct super_block *ubifs_sb;
 

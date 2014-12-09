@@ -100,7 +100,7 @@ inline void wait_ms(unsigned long ms)
  * Init USB Device
  */
 
-int usb_init(void)
+int usb_init(int index)
 {
 	int result;
 
@@ -110,7 +110,7 @@ int usb_init(void)
 	usb_hub_reset();
 	/* init low_level USB */
 	printf("USB:   ");
-	result = usb_lowlevel_init();
+	result = usb_lowlevel_init(index);
 	/* if lowlevel init is OK, scan the bus for devices
 	 * i.e. search HUBs and configure them */
 	if (result == 0) {
@@ -147,12 +147,12 @@ int usb_stop(void)
  * transfers that uses the exclusiv access to the control and bulk messages.
  * Returns the old value so it can be restored later.
  */
-int usb_disable_asynch(int disable)
+void usb_disable_asynch(int disable)
 {
-	int old_value = asynch_allowed;
+	//int old_value = asynch_allowed;
 
 	asynch_allowed = !disable;
-	return old_value;
+	//return old_value;
 }
 
 

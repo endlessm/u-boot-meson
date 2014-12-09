@@ -205,6 +205,14 @@ struct tag_memclk {
 	u32 fmemclk;
 };
 
+#ifdef  CONFIG_UBOOT_BATTERY_PARAMETERS 
+#include <amlogic/battery_parameter.h>
+#define ATAG_BATTERY    0x41000403
+struct tag_battery {
+    struct battery_parameter battery_para;
+};
+#endif
+
 struct tag {
 	struct tag_header hdr;
 	union {
@@ -227,6 +235,13 @@ struct tag {
 		 * DC21285 specific
 		 */
 		struct tag_memclk	memclk;
+        
+    #ifdef CONFIG_UBOOT_BATTERY_PARAMETERS 
+        /*
+         * battery parameters
+         */
+        struct tag_battery  board_battery;
+    #endif
 	} u;
 };
 

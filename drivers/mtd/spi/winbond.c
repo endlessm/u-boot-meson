@@ -8,6 +8,12 @@
 #include <malloc.h>
 #include <spi_flash.h>
 
+#ifdef CONFIG_AMLOGIC_SPI_FLASH 
+
+#include "spi_flash_amlogic.h"
+
+#else //else CONFIG_AMLOGIC_SPI_FLASH
+
 #include "spi_flash_internal.h"
 
 /* M25Pxx-specific commands */
@@ -25,6 +31,8 @@
 #define CMD_W25_RES		0xab	/* Release from DP, and Read Signature */
 
 #define WINBOND_SR_WIP		(1 << 0)	/* Write-in-Progress */
+
+#endif //else end for CONFIG_AMLOGIC_SPI_FLASH
 
 struct winbond_spi_flash_params {
 	uint16_t	id;
@@ -50,62 +58,136 @@ to_winbond_spi_flash(struct spi_flash *flash)
 
 static const struct winbond_spi_flash_params winbond_spi_flash_table[] = {
 	{
-		.id			= 0x3015,
+		.id 				= 0x3011,
 		.l2_page_size		= 8,
 		.pages_per_sector	= 16,
 		.sectors_per_block	= 16,
-		.nr_blocks		= 32,
-		.name			= "W25X16",
+		.nr_blocks			= 2,
+		.name				= "W25X10",
+	},
+
+	{
+		.id 				= 0x3012,
+		.l2_page_size		= 8,
+		.pages_per_sector	= 16,
+		.sectors_per_block	= 16,
+		.nr_blocks			= 4,
+		.name				= "W25X20",
 	},
 	{
-		.id			= 0x3016,
+		.id 				= 0x3013,
 		.l2_page_size		= 8,
 		.pages_per_sector	= 16,
 		.sectors_per_block	= 16,
-		.nr_blocks		= 64,
-		.name			= "W25X32",
+		.nr_blocks			= 8,
+		.name				= "W25X40",
+	},
+
+	{
+		.id                 = 0x3015,
+		.l2_page_size       = 8,
+		.pages_per_sector   = 16,
+		.sectors_per_block  = 16,
+		.nr_blocks          = 32,
+		.name               = "W25X16",
 	},
 	{
-		.id			= 0x3017,
-		.l2_page_size		= 8,
-		.pages_per_sector	= 16,
-		.sectors_per_block	= 16,
-		.nr_blocks		= 128,
-		.name			= "W25X64",
+		.id                 = 0x3016,
+		.l2_page_size       = 8,
+		.pages_per_sector   = 16,
+		.sectors_per_block  = 16,
+		.nr_blocks          = 64,
+		.name               = "W25X32",
 	},
 	{
-		.id			= 0x4015,
-		.l2_page_size		= 8,
-		.pages_per_sector	= 16,
-		.sectors_per_block	= 16,
-		.nr_blocks		= 32,
-		.name			= "W25Q16",
+		.id                 = 0x3017,
+		.l2_page_size       = 8,
+		.pages_per_sector   = 16,
+		.sectors_per_block  = 16,
+		.nr_blocks          = 128,
+		.name               = "W25X64",
 	},
 	{
-		.id			= 0x4016,
-		.l2_page_size		= 8,
-		.pages_per_sector	= 16,
-		.sectors_per_block	= 16,
-		.nr_blocks		= 64,
-		.name			= "W25Q32",
+		.id                 = 0x4015,
+		.l2_page_size       = 8,
+		.pages_per_sector   = 16,
+		.sectors_per_block  = 16,
+		.nr_blocks          = 32,
+		.name               = "W25Q16",
 	},
 	{
-		.id			= 0x4017,
-		.l2_page_size		= 8,
-		.pages_per_sector	= 16,
-		.sectors_per_block	= 16,
-		.nr_blocks		= 128,
-		.name			= "W25Q64",
+		.id                 = 0x4016,
+		.l2_page_size       = 8,
+		.pages_per_sector   = 16,
+		.sectors_per_block  = 16,
+		.nr_blocks          = 64,
+		.name               = "W25Q32",
 	},
 	{
-		.id			= 0x4018,
-		.l2_page_size		= 8,
-		.pages_per_sector	= 16,
-		.sectors_per_block	= 16,
-		.nr_blocks		= 256,
-		.name			= "W25Q128",
+		.id                 = 0x4017,
+		.l2_page_size       = 8,
+		.pages_per_sector   = 16,
+		.sectors_per_block  = 16,
+		.nr_blocks          = 128,
+		.name               = "W25Q64",
+	},
+	{
+		.id                 = 0x4018,
+		.l2_page_size       = 8,
+		.pages_per_sector   = 16,
+		.sectors_per_block  = 16,
+		.nr_blocks          = 256,
+		.name               = "W25Q128",
 	},
 };
+
+#ifdef CONFIG_AMLOGIC_SPI_FLASH 
+//new solution for Amlogic SPI controller 
+//
+//
+static int winbond_write(struct spi_flash *flash, u32 offset, size_t len, const void *buf)
+{	
+	int nReturn = 0;
+	
+	spi_claim_bus(flash->spi);
+    
+    nReturn = spi_flash_write_amlogic(flash, offset, len,buf);
+    
+    spi_release_bus(flash->spi);
+
+	return nReturn;
+}
+
+static int winbond_read_fast(struct spi_flash *flash, u32 offset, size_t len, void *buf)
+{
+	int nReturn =0;
+	
+	spi_claim_bus(flash->spi);
+
+    nReturn = spi_flash_read_amlogic(flash, offset, len,buf);
+
+    spi_release_bus(flash->spi);
+
+	return nReturn;
+}
+int winbond_erase(struct spi_flash *flash, u32 offset, size_t len)
+{
+	struct winbond_spi_flash *stm = to_winbond_spi_flash(flash);
+	u32 sector_size;
+	int nReturn;
+
+	sector_size = (1<< stm->params->l2_page_size) * stm->params->pages_per_sector;
+
+	spi_claim_bus(flash->spi);
+
+	nReturn = spi_flash_erase_amlogic(flash, offset, len, sector_size);
+	
+	spi_release_bus(flash->spi);
+
+	return nReturn;
+}
+
+#else //else for CONFIG_AMLOGIC_SPI_FLASH, keep former for rollback verify
 
 static int winbond_wait_ready(struct spi_flash *flash, unsigned long timeout)
 {
@@ -314,6 +396,8 @@ out:
 	return ret;
 }
 
+#endif // else end for CONFIG_AMLOGIC_SPI_FLASH
+
 struct spi_flash *spi_flash_probe_winbond(struct spi_slave *spi, u8 *idcode)
 {
 	const struct winbond_spi_flash_params *params;
@@ -359,3 +443,4 @@ struct spi_flash *spi_flash_probe_winbond(struct spi_slave *spi, u8 *idcode)
 
 	return &stm->flash;
 }
+

@@ -21,7 +21,8 @@
 # MA 02111-1307 USA
 #
 
-CROSS_COMPILE ?= arm-linux-
+CROSS_COMPILE ?= arm-none-eabi-
+#arm-linux-
 
 ifeq ($(BOARD),omap2420h4)
 STANDALONE_LOAD_ADDR = 0x80300000
@@ -32,6 +33,17 @@ else
 STANDALONE_LOAD_ADDR = 0xc100000
 endif
 endif
+
+ifeq ($(SOC),m6)
+STANDALONE_LOAD_ADDR = 0x83000000
+else
+ifeq ($(SOC),m8)
+STANDALONE_LOAD_ADDR = 0x13000000
+else
+STANDALONE_LOAD_ADDR = 0x13000000
+endif
+endif
+
 
 PLATFORM_CPPFLAGS += -DCONFIG_ARM -D__ARM__
 

@@ -48,6 +48,10 @@ typedef unsigned short		__kernel_old_gid_t;
 typedef long long		__kernel_loff_t;
 #endif
 
+#define BOOL_WAS_DEFINED
+	typedef enum { false = 0, true = 1 } bool;
+
+
 typedef struct {
 #if defined(__KERNEL__) || defined(__USE_ALL)
 	int	val[2];

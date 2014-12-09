@@ -29,6 +29,9 @@
 
 #include <common.h>
 #include <malloc.h>
+
+#if !defined(CONFIG_AMLOGIC_SPI_FLASH)
+//For PxP emulator SPI M25P32 support
 #include <spi_flash.h>
 
 #include "spi_flash_internal.h"
@@ -337,6 +340,8 @@ struct spi_flash *spi_flash_probe_stmicro(struct spi_slave *spi, u8 * idcode)
 			return NULL;
 	}
 
+	printf("\nAmloigc log : STMicro 1\n");
+
 	for (i = 0; i < ARRAY_SIZE(stmicro_spi_flash_table); i++) {
 		params = &stmicro_spi_flash_table[i];
 		if (params->idcode1 == idcode[2]) {
@@ -344,16 +349,22 @@ struct spi_flash *spi_flash_probe_stmicro(struct spi_slave *spi, u8 * idcode)
 		}
 	}
 
+	printf("\nAmloigc log : STMicro 2\n");
+
 	if (i == ARRAY_SIZE(stmicro_spi_flash_table)) {
 		debug("SF: Unsupported STMicro ID %02x\n", idcode[1]);
 		return NULL;
 	}
+
+	printf("\nAmloigc log : STMicro 3\n");
 
 	stm = malloc(sizeof(struct stmicro_spi_flash));
 	if (!stm) {
 		debug("SF: Failed to allocate memory\n");
 		return NULL;
 	}
+
+	printf("\nAmloigc log : STMicro 4\n");
 
 	stm->params = params;
 	stm->flash.spi = spi;
@@ -371,3 +382,130 @@ struct spi_flash *spi_flash_probe_stmicro(struct spi_slave *spi, u8 * idcode)
 
 	return &stm->flash;
 }
+#else
+
+#include "spi_flash_amlogic.h"
+
+struct stmicro_spi_flash_params{
+    u16 idcode;
+    u16 page_size;
+    u16 pages_per_sector;
+    u16 sectors_per_block;
+    u16 nr_blocks;
+    const char *name;
+};
+
+struct stmicro_spi_flash
+{
+    struct spi_flash flash;
+    const struct stmicro_spi_flash_params *params;
+};
+
+static inline struct stmicro_spi_flash *to_stmicro_spi_flash(struct spi_flash *flash)
+{
+    return container_of(flash, struct stmicro_spi_flash, flash);
+}
+
+static const struct stmicro_spi_flash_params stmicro_spi_flash_table[] = 
+{
+    {
+	.idcode            = 0x2016,
+	.page_size         = 256,
+	.pages_per_sector  = 256,
+	.sectors_per_block = 64,
+	.nr_blocks         = 1,
+	.name = "M25P32",
+    },
+    {
+	.idcode            = 0x2018,
+	.page_size         = 256,
+	.pages_per_sector  = 1024,
+	.sectors_per_block = 64,
+	.nr_blocks         = 1,
+	.name = "M25P128",
+    },
+};
+
+static int stmicro_read_fast(struct spi_flash *flash, u32 offset, size_t len, void *buf)
+{
+	int ret;
+    spi_claim_bus(flash->spi);
+
+    ret = spi_flash_read_amlogic(flash, offset, len,buf);
+
+    spi_release_bus(flash->spi);
+	
+    return  ret;		
+}
+
+static int stmicro_write(struct spi_flash *flash, u32 offset, size_t len, const void *buf)
+{
+    int ret;
+    spi_claim_bus(flash->spi);
+    
+    ret = spi_flash_write_amlogic(flash, offset, len,buf);
+    
+    spi_release_bus(flash->spi);
+    
+    return ret;		
+}
+
+int stmicro_erase(struct spi_flash *flash, u32 offset, size_t len)
+{
+    struct stmicro_spi_flash *stm = to_stmicro_spi_flash(flash);
+    u32 sector_size;
+    int ret;
+
+    sector_size = stm->params->page_size * stm->params->pages_per_sector;
+
+    spi_claim_bus(flash->spi);
+
+    ret = spi_flash_erase_amlogic(flash, offset, len, sector_size);
+
+    spi_release_bus(flash->spi);
+
+    return ret;	
+}
+
+struct spi_flash *spi_flash_probe_stmicro(struct spi_slave *spi, u8 *idcode)
+{
+	const struct stmicro_spi_flash_params *params;
+	struct stmicro_spi_flash *mcx;
+	unsigned int i;
+	u16 id = idcode[2] | idcode[1] << 8;
+
+	for (i = 0; i < ARRAY_SIZE(stmicro_spi_flash_table); i++) {
+		params = &stmicro_spi_flash_table[i];
+		if (params->idcode == id)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(stmicro_spi_flash_table)) {
+		debug("SF: Unsupported Macronix ID %04x\n", id);
+		return NULL;
+	}
+
+	mcx = malloc(sizeof(*mcx));
+	if (!mcx) {
+		debug("SF: Failed to allocate memory\n");
+		return NULL;
+	}
+
+	mcx->params = params;
+	mcx->flash.spi = spi;
+	mcx->flash.name = params->name;
+
+	mcx->flash.write = stmicro_write;
+	mcx->flash.erase = stmicro_erase;
+	mcx->flash.read = stmicro_read_fast;
+	mcx->flash.size = params->page_size * params->pages_per_sector
+	    * params->sectors_per_block * params->nr_blocks;
+
+	printf("SF: Detected %s with page size %u, total ",
+	       params->name, params->page_size);
+	print_size(mcx->flash.size, "\n");
+
+	return &mcx->flash;
+}
+
+#endif 

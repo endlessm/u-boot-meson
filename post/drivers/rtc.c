@@ -45,6 +45,141 @@
 
 #if CONFIG_POST & CONFIG_SYS_POST_RTC
 
+#ifdef CONFIG_POST_AML
+#include <aml_rtc.h>
+
+// Define RTC register address mapping
+#define RTC_COUNTER_ADDR            0
+#define RTC_GPO_COUNTER_ADDR        1
+#define RTC_SEC_ADJUST_ADDR         2
+#define RTC_UNUSED_ADDR_0           3
+#define RTC_REGMEM_ADDR_0           4
+#define RTC_REGMEM_ADDR_1           5
+#define RTC_REGMEM_ADDR_2           6
+#define RTC_REGMEM_ADDR_3           7
+//===============================================================
+struct rtc_time pattern1 ={
+	.tm_year = 111,
+	.tm_mon = 2,
+	.tm_mday = 23,
+	.tm_hour = 13,
+	.tm_min = 15,
+	.tm_sec = 3,
+};
+
+//===============================================================
+static void write_rtc(struct rtc_time *pattern)
+{
+	struct rtc_time tm;
+	tm.tm_year = pattern->tm_year;
+	tm.tm_mon = pattern->tm_mon;
+	tm.tm_mday = pattern->tm_mday;						
+	tm.tm_hour = pattern->tm_hour;						
+	tm.tm_min = pattern->tm_min;
+	tm.tm_sec = pattern->tm_sec;	 
+	aml_rtc_write_time(&tm); 
+	post_log("<%d>RTC: set time: %04d-%02d-%02d %02d:%02d:%02d\n", SYSTEST_INFO_L2,
+						tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+						tm.tm_hour, tm.tm_min, tm.tm_sec);	
+}
+//===============================================================
+static int read_rtc(struct rtc_time* pattern)
+{
+	struct rtc_time tm;
+	aml_rtc_read_time(&tm);
+	post_log("<%d>RTC: get time: %04d-%02d-%02d %02d:%02d:%02d\n", SYSTEST_INFO_L2, 
+						tm.tm_year+1900, tm.tm_mon+1, tm.tm_mday,
+						tm.tm_hour, tm.tm_min, tm.tm_sec);
+						
+	if((tm.tm_year != pattern->tm_year) || (tm.tm_mon != pattern->tm_mon) || (tm.tm_mday != pattern->tm_mday)
+		|| (tm.tm_hour != pattern->tm_hour) || (tm.tm_min != pattern->tm_min) 
+		|| (tm.tm_sec < 0) || (tm.tm_sec > 60)) 
+		return -1;	
+	
+	else	
+		return 0;		
+	
+}
+//===============================================================
+int rtc_post_test (int flags)
+{
+	int i, ret;
+	unsigned data, val;
+	unsigned long   osc_clk_count1; 
+	unsigned long   osc_clk_count2; 
+	int diff;
+		
+	// test serial access
+	write_rtc(&pattern1);	
+	ret = 0;
+	for(i=0; i<4;i++){
+		if(read_rtc(&pattern1) < 0){
+			post_log("<%d>%s:%d: RTC read time[%d] fail.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__, i);						
+			ret = -1;
+		}		
+	}
+	// mesure 1s osc clock counter
+	aml_test_1s_clock(&osc_clk_count1, &osc_clk_count2);
+	post_log("<%d>%s:%d: RTC before osc counter: %d.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__, osc_clk_count1);
+	post_log("<%d>%s:%d: RTC after osc counter: %d.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__, osc_clk_count2);
+	diff = osc_clk_count2-osc_clk_count1;
+	if(diff > 32768)
+		post_log("<%d>%s:%d: RTC 1s interval osc counter greater: %d.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__, diff-32768);
+	else if(diff < 32768)
+		post_log("<%d>%s:%d: RTC 1s interval osc counter less: %d.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__, 32768-diff);
+	else
+		post_log("<%d>%s:%d: RTC 1s osc counter diff: equal 32768.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);
+	
+	//test GPO counter: interval 10s GPO output from low level to high level	
+	// reset GPO
+	ser_access_write(RTC_GPO_COUNTER_ADDR,0x500000);	
+//	aml_get_gpo_dig
+	val = ser_access_read(RTC_GPO_COUNTER_ADDR);
+	if(val & (1<<24))		
+		post_log("<%d>%s:%d: reset gpo level RTC_GPO_COUNTER_ADDR[24] is high.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);		
+	else
+		post_log("<%d>%s:%d: reset gpo level RTC_GPO_COUNTER_ADDR[24] is low.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);					
+	if(aml_get_gpo_dig())
+		post_log("<%d>%s:%d: reset gpo level RTC_ADDR1[3] is high.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);		
+	else
+		post_log("<%d>%s:%d: reset gpo level RTC_ADDR1[3] is low.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);		
+		
+	
+	data = 0;
+	data |= (10-1) << 0;
+	data |= 2<<20;
+	data |= 0<<22;
+	ser_access_write(RTC_GPO_COUNTER_ADDR,data);	
+	udelay(5000000);
+	val = ser_access_read(RTC_GPO_COUNTER_ADDR);
+	if(val & (1<<24))		
+		post_log("<%d>%s:%d: 5s gpo level RTC_GPO_COUNTER_ADDR[24] is high.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);		
+	else
+		post_log("<%d>%s:%d: 5s gpo level RTC_GPO_COUNTER_ADDR[24] is low.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);					
+	if(aml_get_gpo_dig())
+		post_log("<%d>%s:%d: 5s gpo level RTC_ADDR1[3] is high.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);		
+	else
+		post_log("<%d>%s:%d: 5s gpo level RTC_ADDR1[3] is low.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);		
+		
+	udelay(5000000);	
+	val = ser_access_read(RTC_GPO_COUNTER_ADDR);
+	if(val & (1<<24))		{
+		post_log("<%d>%s:%d: test fail: gpo level is high.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);		
+		ret = -1;
+	}
+	else{
+		post_log("<%d>%s:%d: gpo level is low.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);				
+	}   
+	if(aml_get_gpo_dig())
+		post_log("<%d>%s:%d: 10s gpo level RTC_ADDR1[3] is high.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);		
+	else
+		post_log("<%d>%s:%d: 10s gpo level RTC_ADDR1[3] is low.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__);		
+		
+	return ret;
+}
+//===============================================================
+
+#else
 static int rtc_post_skip (ulong * diff)
 {
 	struct rtc_time tm1;
@@ -192,4 +327,5 @@ int rtc_post_test (int flags)
 	return 0;
 }
 
+#endif /*CONFIG_POST_AML*/
 #endif /* CONFIG_POST & CONFIG_SYS_POST_RTC */

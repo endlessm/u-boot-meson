@@ -30,7 +30,7 @@ DECLARE_GLOBAL_DATA_PTR;
 static struct serial_device *serial_devices = NULL;
 static struct serial_device *serial_current = NULL;
 
-#if !defined(CONFIG_LWMON) && !defined(CONFIG_PXA250) && !defined(CONFIG_PXA27X)
+#if !defined(CONFIG_LWMON) && !defined(CONFIG_PXA250) && !defined(CONFIG_PXA27X) && !defined(CONFIG_AML_MESON)
 struct serial_device *__default_serial_console (void)
 {
 #if defined(CONFIG_8xx_CONS_SMC1) || defined(CONFIG_8xx_CONS_SMC2)
@@ -91,7 +91,7 @@ struct serial_device *__default_serial_console (void)
 #elif defined(CONFIG_OMAP3_ZOOM2)
 		return ZOOM2_DEFAULT_SERIAL_DEVICE;
 #else
-#error No default console
+    #error  No default console
 #endif
 }
 
@@ -172,6 +172,10 @@ void serial_initialize (void)
 #if defined(CONFIG_SYS_PSC6)
 	serial_register(&serial6_device);
 #endif
+#endif
+#if defined(CONFIG_AML_MESON)
+extern void serial_aml_register(void);
+    serial_aml_register();
 #endif
 	serial_assign (default_serial_console ()->name);
 }

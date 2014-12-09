@@ -823,6 +823,11 @@ int do_fdcboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	/* Loading ok, update default load address */
 	load_addr = addr;
 
+#ifdef CONFIG_AML_SECU_BOOT_V2
+	extern int g_nIMGReadFlag;
+	g_nIMGReadFlag = 0;
+#endif //#ifdef CONFIG_AML_SECU_BOOT_V2
+
 	/* Check if we should attempt an auto-start */
 	if (((ep = getenv("autostart")) != NULL) && (strcmp(ep,"yes") == 0)) {
 		char *local_args[2];
@@ -831,7 +836,6 @@ int do_fdcboot (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		local_args[1] = NULL;
 
 		printf ("Automatic boot of image at addr 0x%08lX ...\n", addr);
-
 		do_bootm (cmdtp, 0, 1, local_args);
 		rcode ++;
 	}

@@ -8,6 +8,8 @@
 #include <malloc.h>
 #include <spi_flash.h>
 
+#ifndef CONFIG_AMLOGIC_SPI_FLASH 
+
 #include "spi_flash_internal.h"
 
 /* EN25Q128-specific commands */
@@ -25,16 +27,29 @@
 
 #define EON_ID_EN25Q128		0x18
 
-#define EON_SR_WIP		(1 << 0)	/* Write-in-Progress */
+#define EON_SR_WIP		    (1 << 0)	/* Write-in-Progress */
 
 struct eon_spi_flash_params {
-	u8 idcode1;
+	u8  idcode1;
 	u16 page_size;
 	u16 pages_per_sector;
 	u16 sectors_per_block;
 	u16 nr_sectors;
 	const char *name;
 };
+#else /*else CONFIG_AMLOGIC_SPI_FLASH*/
+
+#include "spi_flash_amlogic.h"
+
+struct eon_spi_flash_params {
+	uint32_t	id;
+	uint32_t	sector_size;
+	uint32_t	block_size;
+	uint32_t	chip_size;
+	const char	*name;
+};
+
+#endif /*CONFIG_AMLOGIC_SPI_FLASH*/
 
 /* spi_flash needs to be first so upper layers can free() it */
 struct eon_spi_flash {
@@ -47,6 +62,9 @@ static inline struct eon_spi_flash *to_eon_spi_flash(struct spi_flash *flash)
 	return container_of(flash, struct eon_spi_flash, flash);
 }
 
+
+#ifndef CONFIG_AMLOGIC_SPI_FLASH
+
 static const struct eon_spi_flash_params eon_spi_flash_table[] = {
 	{
 		.idcode1 = EON_ID_EN25Q128,
@@ -57,6 +75,85 @@ static const struct eon_spi_flash_params eon_spi_flash_table[] = {
 		.name = "EN25Q128",
 	},
 };
+
+#else /*else CONFIG_AMLOGIC_SPI_FLASH*/
+
+#define EON_ID_EN25B16 0x2015
+#define EON_ID_M25X32  0x2016
+#define EON_ID_M25X64  0x2017
+#define EON_ID_EN25F16 0x3115
+#define EON_ID_EN25F40 0x3113
+
+static const struct eon_spi_flash_params eon_spi_flash_table[] = {
+	{	.id			 = EON_ID_EN25F16,
+		.sector_size = 4*1024,
+		.block_size	 = 64*1024 ,
+		.chip_size	 = 2*1024*1024,
+		.name		 = "EN25F16",
+	},
+	{	.id			 = EON_ID_EN25B16,
+		.sector_size = 4*1024,
+		.block_size	 = 64*1024 ,
+		.chip_size	 = 2*1024*1024,
+		.name		 = "EN25B16",
+	},
+	{	.id			 = EON_ID_EN25F40,
+		.sector_size = 4*1024,
+		.block_size	 = 64*1024 ,
+		.chip_size	 = 512*1024,
+		.name		 = "EN25F40",
+	},
+};
+
+//new solution for Amlogic SPI controller 
+//
+//
+static int eon_write(struct spi_flash *flash, u32 offset, size_t len, const void *buf)
+{	
+	int nReturn = 0;
+	
+	spi_claim_bus(flash->spi);
+    
+    nReturn = spi_flash_write_amlogic(flash, offset, len,buf);
+    
+    spi_release_bus(flash->spi);
+
+	return nReturn;
+}
+
+static int eon_read_fast(struct spi_flash *flash, u32 offset, size_t len, void *buf)
+{
+	int nReturn =0;
+	
+	spi_claim_bus(flash->spi);
+
+    nReturn = spi_flash_read_amlogic(flash, offset, len,buf);
+
+    spi_release_bus(flash->spi);
+
+	return nReturn;
+}
+static int eon_erase(struct spi_flash *flash, u32 offset, size_t len)
+{
+	struct eon_spi_flash *stm = to_eon_spi_flash(flash);
+	u32 sector_size;
+	int nReturn;
+
+	sector_size = stm->params->sector_size;
+
+	spi_claim_bus(flash->spi);
+
+	nReturn = spi_flash_erase_amlogic(flash, offset, len, sector_size);
+	
+	spi_release_bus(flash->spi);
+
+	return nReturn;
+}
+#endif /*CONFIG_AMLOGIC_SPI_FLASH*/
+
+#ifndef CONFIG_AMLOGIC_SPI_FLASH
+
+/*for CONFIG_AMLOGIC_SPI_FLASH, keep former for rollback verify*/
 
 static int eon_wait_ready(struct spi_flash *flash, unsigned long timeout)
 {
@@ -235,6 +332,8 @@ int eon_erase(struct spi_flash *flash, u32 offset, size_t len)
 	return ret;
 }
 
+#endif /*CONFIG_AMLOGIC_SPI_FLASH*/
+
 struct spi_flash *spi_flash_probe_eon(struct spi_slave *spi, u8 *idcode)
 {
 	const struct eon_spi_flash_params *params;
@@ -243,8 +342,13 @@ struct spi_flash *spi_flash_probe_eon(struct spi_slave *spi, u8 *idcode)
 
 	for (i = 0; i < ARRAY_SIZE(eon_spi_flash_table); ++i) {
 		params = &eon_spi_flash_table[i];
+#ifndef CONFIG_AMLOGIC_SPI_FLASH
 		if (params->idcode1 == idcode[2])
 			break;
+#else 
+		if (((idcode[1] << 8) | idcode[2]) == params->id)
+			break;
+#endif /*CONFIG_AMLOGIC_SPI_FLASH*/
 	}
 
 	if (i == ARRAY_SIZE(eon_spi_flash_table)) {
@@ -264,9 +368,14 @@ struct spi_flash *spi_flash_probe_eon(struct spi_slave *spi, u8 *idcode)
 
 	eon->flash.write = eon_write;
 	eon->flash.erase = eon_erase;
-	eon->flash.read = eon_read_fast;
+	eon->flash.read  = eon_read_fast;
+	
+#ifndef CONFIG_AMLOGIC_SPI_FLASH
 	eon->flash.size = params->page_size * params->pages_per_sector
 	    * params->nr_sectors;
+#else
+	eon->flash.size = params->chip_size;
+#endif /*CONFIG_AMLOGIC_SPI_FLASH*/
 
 	debug("SF: Detected %s with page size %u, total %u bytes\n",
 	      params->name, params->page_size, eon->flash.size);

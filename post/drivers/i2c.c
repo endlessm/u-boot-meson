@@ -44,6 +44,64 @@
 
 #if CONFIG_POST & CONFIG_SYS_POST_I2C
 
+#ifdef CONFIG_POST_AML
+#include <aml_i2c.h>
+
+extern struct aml_i2c_device aml_i2c_devices;
+
+//=============================================================================
+static int i2c_xfer(unsigned int addr)
+{
+    unsigned char cmd = 0x0;
+	
+	struct i2c_msg msgs[] = {
+	    {
+	        .addr = addr,
+	        .flags = 0,
+	        .len = 1,
+	        .buf = &cmd,
+	    }
+	};
+
+	if(aml_i2c_xfer(msgs, 1) < 0) 
+		return -1;
+
+	return 0;
+}
+
+//=============================================================================
+int i2c_post_test(int flags)
+{
+	int i, ret;
+	struct i2c_board_info *ptests = aml_i2c_devices.aml_i2c_boards;
+	struct i2c_board_info *ptest = NULL;
+	int num = aml_i2c_devices.dev_num;
+	
+	ret = 0;	
+	for(i=0; i<num; i++){	
+		ptest = ptests+i;
+				
+		if(ptest->device_init)
+			ptest->device_init();
+				
+		if(i2c_xfer(ptest->addr) < 0){					
+			post_log("<%d>%s:%d: I2C[board: %s addr: 0x%x]: test fail.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__, ptest->type, ptest->addr);			
+			ret = -1;
+		}
+		else{				
+			post_log("<%d>%s:%d: I2C[board: %s addr: 0x%x]: test pass.\n", SYSTEST_INFO_L2, __FUNCTION__, __LINE__, ptest->type, ptest->addr);
+		}
+		
+		if(ptest->device_uninit)
+			ptest->device_uninit();					
+	}
+	
+	return ret;	
+}
+
+//=============================================================================
+#else
+
 static int i2c_ignore_device(unsigned int chip)
 {
 #ifdef CONFIG_SYS_POST_I2C_IGNORES
@@ -108,4 +166,5 @@ int i2c_post_test (int flags)
 #endif
 }
 
+#endif /*CONFIG_POST_AML*/
 #endif /* CONFIG_POST & CONFIG_SYS_POST_I2C */
