@@ -74,7 +74,7 @@ static const struct block_drvr block_drvr[] = {
 
 DECLARE_GLOBAL_DATA_PTR;
 
-block_dev_desc_t *get_dev(char* ifname, int dev)
+block_dev_desc_t *get_dev(const char *ifname, int dev)
 {
 	const struct block_drvr *drvr = block_drvr;
 	block_dev_desc_t* (*reloc_get_dev)(int dev);
@@ -98,7 +98,7 @@ block_dev_desc_t *get_dev(char* ifname, int dev)
 	return NULL;
 }
 #else
-block_dev_desc_t *get_dev(char* ifname, int dev)
+block_dev_desc_t *get_dev(const char *ifname, int dev)
 {
 	return NULL;
 }
@@ -291,6 +291,7 @@ void init_part (block_dev_desc_t * dev_desc)
 	    return;
 	}
 #endif
+	dev_desc->part_type = PART_TYPE_UNKNOWN;
 }
 
 
@@ -428,6 +429,69 @@ void print_part (block_dev_desc_t * dev_desc)
 	puts ("## Unknown partition table\n");
 }
 
+int get_device_and_partition(const char *ifname, const char *dev_str,
+			     block_dev_desc_t **dev_desc,
+			     disk_partition_t *info)
+{
+	int ret;
+	char *ep;
+	int dev;
+	block_dev_desc_t *desc;
+	int part = 0;
+	char *part_str;
+
+	if (dev_str)
+		dev = simple_strtoul(dev_str, &ep, 16);
+
+	if (!dev_str || (dev_str == ep)) {
+		dev_str = getenv("bootdevice");
+		if (dev_str)
+			dev = simple_strtoul(dev_str, &ep, 16);
+		if (!dev_str || (dev_str == ep))
+			goto err;
+	}
+
+	desc = get_dev(ifname, dev);
+	if (!desc || (desc->type == DEV_TYPE_UNKNOWN))
+		goto err;
+
+	if (desc->part_type == PART_TYPE_UNKNOWN) {
+		/* disk doesn't use partition table */
+		if (!desc->lba) {
+			printf("**Bad disk size - %s %d:0 **\n", ifname, dev);
+			return -1;
+		}
+		info->start = 0;
+		info->size = desc->lba;
+		info->blksz = desc->blksz;
+
+		*dev_desc = desc;
+		return 0;
+	}
+
+	part_str = strchr(dev_str, ':');
+	if (part_str)
+		part = (int)simple_strtoul(++part_str, NULL, 16);
+
+	ret = get_partition_info(desc, part, info);
+	if (ret) {
+		printf("** Invalid partition %d, use `dev[:part]' **\n", part);
+		return -1;
+	}
+	if (strncmp((char *)info->type, BOOT_PART_TYPE, sizeof(info->type)) != 0) {
+		printf("** Invalid partition type \"%.32s\""
+			" (expect \"" BOOT_PART_TYPE "\")\n",
+			info->type);
+		return -1;
+	}
+
+	*dev_desc = desc;
+	return part;
+
+err:
+	puts("** Invalid boot device, use `dev[:part]' **\n");
+	return -1;
+}
 
 #else	/* neither MAC nor DOS nor ISO nor AMIGA nor EFI partition configured */
 # error neither CONFIG_MAC_PARTITION nor CONFIG_DOS_PARTITION
