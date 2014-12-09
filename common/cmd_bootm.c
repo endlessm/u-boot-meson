@@ -240,7 +240,7 @@ static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 	bootm_start_lmb();
 
 	/* get kernel image header, start address and length */
-	os_hdr = boot_get_kernel (cmdtp, flag, argc, argv,
+	temp_os_hdr = os_hdr = boot_get_kernel (cmdtp, flag, argc, argv,
 			&images, &images.os.image_start, &images.os.image_len);
 	if (images.os.image_len == 0) {
 		puts ("ERROR: can't get kernel image!\n");
@@ -292,7 +292,7 @@ static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 #endif
 #if defined(CONFIG_ANDROID_IMG)
 	case IMAGE_FORMAT_ANDROID:
-		temp_os_hdr = os_hdr + 0x800;//shift 0x800 Android format head
+		temp_os_hdr += 0x800;//shift 0x800 Android format head
 		temp_android_hdr = (void *) os_hdr;
 		images.os.type = image_get_type (temp_os_hdr);
 		images.os.comp = image_get_comp (temp_os_hdr);
