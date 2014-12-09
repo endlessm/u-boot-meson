@@ -33,14 +33,14 @@ extern disk_partition_t *part_info;
 
 struct ext2_data *ext4fs_root;
 struct ext2fs_node *ext4fs_file;
-uint32_t *ext4fs_indir1_block;
+uint32_t *ext4fs_indir1_block = NULL;
 int ext4fs_indir1_size;
 int ext4fs_indir1_blkno = -1;
-uint32_t *ext4fs_indir2_block;
+uint32_t *ext4fs_indir2_block = NULL;
 int ext4fs_indir2_size;
 int ext4fs_indir2_blkno = -1;
 
-uint32_t *ext4fs_indir3_block;
+uint32_t *ext4fs_indir3_block = NULL;
 int ext4fs_indir3_size;
 int ext4fs_indir3_blkno = -1;
 struct ext2_inode *g_parent_inode;
