@@ -31,27 +31,12 @@
 
 #include <common.h>
 #include <malloc.h>
-#include <spi_flash.h>
 
-#include "spi_flash_internal.h"
+#ifdef CONFIG_AMLOGIC_SPI_FLASH
+#include "spi_flash_amlogic.h"
+#endif
 
-/* MX25xx-specific commands */
-#define CMD_MX25XX_WREN		0x06	/* Write Enable */
-#define CMD_MX25XX_WRDI		0x04	/* Write Disable */
-#define CMD_MX25XX_RDSR		0x05	/* Read Status Register */
-#define CMD_MX25XX_WRSR		0x01	/* Write Status Register */
-#define CMD_MX25XX_READ		0x03	/* Read Data Bytes */
-#define CMD_MX25XX_FAST_READ	0x0b	/* Read Data Bytes at Higher Speed */
-#define CMD_MX25XX_PP		0x02	/* Page Program */
-#define CMD_MX25XX_SE		0x20	/* Sector Erase */
-#define CMD_MX25XX_BE		0xD8	/* Block Erase */
-#define CMD_MX25XX_CE		0xc7	/* Chip Erase */
-#define CMD_MX25XX_DP		0xb9	/* Deep Power-down */
-#define CMD_MX25XX_RES		0xab	/* Release from DP, and Read Signature */
-
-#define MACRONIX_SR_WIP		(1 << 0)	/* Write-in-Progress */
-
-struct macronix_spi_flash_params {
+struct macronix_spi_flash_params{
 	u16 idcode;
 	u16 page_size;
 	u16 pages_per_sector;
@@ -60,59 +45,104 @@ struct macronix_spi_flash_params {
 	const char *name;
 };
 
-struct macronix_spi_flash {
-	struct spi_flash flash;
-	const struct macronix_spi_flash_params *params;
+struct macronix_spi_flash
+{
+    struct spi_flash flash;
+    const struct macronix_spi_flash_params *params;
 };
 
-static inline struct macronix_spi_flash *to_macronix_spi_flash(struct spi_flash
-							       *flash)
+static inline struct macronix_spi_flash *to_macronix_spi_flash(struct spi_flash *flash)
 {
 	return container_of(flash, struct macronix_spi_flash, flash);
 }
 
-static const struct macronix_spi_flash_params macronix_spi_flash_table[] = {
+static const struct macronix_spi_flash_params macronix_spi_flash_table[] = 
+{
 	{
-		.idcode = 0x2015,
-		.page_size = 256,
-		.pages_per_sector = 16,
+		.idcode            = 0x2015,
+		.page_size         = 256,
+		.pages_per_sector  = 16,
 		.sectors_per_block = 16,
-		.nr_blocks = 32,
+		.nr_blocks         = 32,
 		.name = "MX25L1605D",
 	},
 	{
-		.idcode = 0x2016,
-		.page_size = 256,
-		.pages_per_sector = 16,
+		.idcode            = 0x2016,
+		.page_size         = 256,
+		.pages_per_sector  = 16,
 		.sectors_per_block = 16,
-		.nr_blocks = 64,
+		.nr_blocks         = 64,
 		.name = "MX25L3205D",
 	},
 	{
-		.idcode = 0x2017,
-		.page_size = 256,
-		.pages_per_sector = 16,
+		.idcode            = 0x2017,
+		.page_size         = 256,
+		.pages_per_sector  = 16,
 		.sectors_per_block = 16,
-		.nr_blocks = 128,
+		.nr_blocks         = 128,
 		.name = "MX25L6405D",
 	},
 	{
-		.idcode = 0x2018,
-		.page_size = 256,
-		.pages_per_sector = 16,
+		.idcode            = 0x2018,
+		.page_size         = 256,
+		.pages_per_sector  = 16,
 		.sectors_per_block = 16,
-		.nr_blocks = 256,
+		.nr_blocks         = 256,
 		.name = "MX25L12805D",
 	},
 	{
-		.idcode = 0x2618,
-		.page_size = 256,
-		.pages_per_sector = 16,
+		.idcode            = 0x2618,
+		.page_size         = 256,
+		.pages_per_sector  = 16,
 		.sectors_per_block = 16,
-		.nr_blocks = 256,
+		.nr_blocks         = 256,
 		.name = "MX25L12855E",
 	},
 };
+
+#ifdef CONFIG_AMLOGIC_SPI_FLASH //new solution for Amlogic SPI controller
+
+static int macronix_read_fast(struct spi_flash *flash, u32 offset, size_t len, void *buf)
+{
+	int ret;
+    spi_claim_bus(flash->spi);
+
+    ret = spi_flash_read_amlogic(flash, offset, len,buf);
+
+    spi_release_bus(flash->spi);
+	
+    return  ret;		
+}
+
+static int macronix_write(struct spi_flash *flash, u32 offset, size_t len, const void *buf)
+{
+	int ret;
+    spi_claim_bus(flash->spi);
+    
+    ret = spi_flash_write_amlogic(flash, offset, len,buf);
+    
+    spi_release_bus(flash->spi);
+    
+    return ret;		
+}
+
+int macronix_erase(struct spi_flash *flash, u32 offset, size_t len)
+{
+	struct macronix_spi_flash *stm = to_macronix_spi_flash(flash);
+	u32 sector_size;
+	int ret;
+
+	sector_size = stm->params->page_size * stm->params->pages_per_sector;
+
+	spi_claim_bus(flash->spi);
+
+	ret = spi_flash_erase_amlogic(flash, offset, len, sector_size);
+	
+	spi_release_bus(flash->spi);
+
+	return ret;	
+}
+#else //for version compatible, keep former version for verify
 
 static int macronix_wait_ready(struct spi_flash *flash, unsigned long timeout)
 {
@@ -295,6 +325,7 @@ int macronix_erase(struct spi_flash *flash, u32 offset, size_t len)
 	spi_release_bus(flash->spi);
 	return ret;
 }
+#endif //CONFIG_AMLOGIC_SPI_FLASH
 
 struct spi_flash *spi_flash_probe_macronix(struct spi_slave *spi, u8 *idcode)
 {

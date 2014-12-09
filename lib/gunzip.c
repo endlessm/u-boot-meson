@@ -36,10 +36,7 @@
 #define RESERVED		0xe0
 #define DEFLATED		8
 
-void *zalloc(void *, unsigned, unsigned);
-void zfree(void *, void *, unsigned);
-
-void *zalloc(void *x, unsigned items, unsigned size)
+void *gzalloc(void *x, unsigned items, unsigned size)
 {
 	void *p;
 
@@ -51,7 +48,7 @@ void *zalloc(void *x, unsigned items, unsigned size)
 	return (p);
 }
 
-void zfree(void *x, void *addr, unsigned nb)
+void gzfree(void *x, void *addr, unsigned nb)
 {
 	free (addr);
 }
@@ -94,8 +91,8 @@ int zunzip(void *dst, int dstlen, unsigned char *src, unsigned long *lenp,
 	z_stream s;
 	int r;
 
-	s.zalloc = zalloc;
-	s.zfree = zfree;
+	s.zalloc = gzalloc;
+	s.zfree = gzfree;
 
 	r = inflateInit2(&s, -MAX_WBITS);
 	if (r != Z_OK) {
@@ -106,12 +103,16 @@ int zunzip(void *dst, int dstlen, unsigned char *src, unsigned long *lenp,
 	s.avail_in = *lenp - offset;
 	s.next_out = dst;
 	s.avail_out = dstlen;
-	r = inflate(&s, Z_FINISH);
-	if ((r != Z_STREAM_END) && (stoponerr==1)) {
-		printf ("Error: inflate() returned %d\n", r);
-		inflateEnd(&s);
-		return (-1);
-	}
+	do {
+		r = inflate(&s, Z_FINISH);
+		if (r != Z_STREAM_END && r != Z_BUF_ERROR && stoponerr == 1) {
+			printf("Error: inflate() returned %d\n", r);
+			inflateEnd(&s);
+			return -1;
+		}
+		s.avail_in = *lenp - offset - (int)(s.next_out - (unsigned char*)dst);
+		s.avail_out = dstlen;
+	} while (r == Z_BUF_ERROR);
 	*lenp = s.next_out - (unsigned char *) dst;
 	inflateEnd(&s);
 

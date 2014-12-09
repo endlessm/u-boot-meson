@@ -24,7 +24,7 @@
 #include <common.h>
 #include <asm/system.h>
 
-#if !(defined(CONFIG_SYS_NO_ICACHE) && defined(CONFIG_SYS_NO_DCACHE))
+#if !(defined(CONFIG_ICACHE_OFF) && defined(CONFIG_DCACHE_OFF))
 
 #if defined(CONFIG_SYS_ARM_CACHE_WRITETHROUGH)
 #define CACHE_SETUP	0x1a
@@ -44,41 +44,27 @@ static void cp_delay (void)
 	asm volatile("" : : : "memory");
 }
 
-static inline void dram_bank_mmu_setup(int bank)
-{
-	u32 *page_table = (u32 *)gd->tlb_addr;
-	bd_t *bd = gd->bd;
-	int	i;
-
-	debug("%s: bank: %d\n", __func__, bank);
-	for (i = bd->bi_dram[bank].start >> 20;
-	     i < (bd->bi_dram[bank].start + bd->bi_dram[bank].size) >> 20;
-	     i++) {
-		page_table[i] = i << 20 | (3 << 10) | CACHE_SETUP;
-	}
-}
-
 /* to activate the MMU we need to set up virtual memory: use 1M areas */
 static inline void mmu_setup(void)
 {
 	u32 *page_table = (u32 *)gd->tlb_addr;
-	int i;
+	//int i;
 	u32 reg;
-
-	/* Set up an identity-mapping for all 4GB, rw for everyone */
-	for (i = 0; i < 4096; i++)
-		page_table[i] = i << 20 | (3 << 10) | 0x12;
-
-	for (i = 0; i < CONFIG_NR_DRAM_BANKS; i++) {
-		dram_bank_mmu_setup(i);
-	}
 
 	/* Copy the page table address to cp15 */
 	asm volatile("mcr p15, 0, %0, c2, c0, 0"
 		     : : "r" (page_table) : "memory");
-	/* Set the access control to all-supervisor */
+	/* Set the access control to client */
 	asm volatile("mcr p15, 0, %0, c3, c0, 0"
-		     : : "r" (~0));
+		     : : "r" (0x55555555));
+		     	
+ 	asm volatile("mcr p15, 0, %0, c7, c5, 6"   : : "r" (0));   // invalidate BTAC    				   	
+ 	asm volatile("mcr p15, 0, %0, c7, c5, 0"   : : "r" (0));   // invalidate ICache
+   asm volatile("dsb");
+   asm volatile("mcr p15, 0, %0, c8, c7, 0"	  : : "r" (0));    // invalidate TLBs
+	asm volatile("dsb");
+ 	asm volatile("isb");
+	
 	/* and enable the mmu */
 	reg = get_cr();	/* get control reg. */
 	cp_delay();
@@ -118,7 +104,7 @@ static void cache_disable(uint32_t cache_bit)
 }
 #endif
 
-#ifdef CONFIG_SYS_NO_ICACHE
+#ifdef CONFIG_ICACHE_OFF
 void icache_enable (void)
 {
 	return;
@@ -150,7 +136,7 @@ int icache_status(void)
 }
 #endif
 
-#ifdef CONFIG_SYS_NO_DCACHE
+#ifdef CONFIG_DCACHE_OFF
 void dcache_enable (void)
 {
 	return;

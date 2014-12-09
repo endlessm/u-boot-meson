@@ -32,7 +32,7 @@
 #include <linux/mtd/concat.h>
 #include <mtd/cfi_flash.h>
 
-static struct mtd_info cfi_mtd_info[CFI_MAX_FLASH_BANKS];
+static struct mtd_info cfi_mtd_info[CFI_MAX_FLASH_BANKS]={0};
 static char cfi_mtd_names[CFI_MAX_FLASH_BANKS][16];
 #ifdef CONFIG_MTD_CONCAT
 static char c_mtd_name[16];

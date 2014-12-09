@@ -65,8 +65,8 @@ LIBOBJS	= $(addprefix $(obj),$(LIBAOBJS) $(LIBCOBJS))
 SRCS	:= $(COBJS:.o=.c) $(LIBCOBJS:.o=.c) $(LIBAOBJS:.o=.S)
 OBJS	:= $(addprefix $(obj),$(COBJS))
 ELF	:= $(addprefix $(obj),$(ELF))
-BIN	:= $(addprefix $(obj),$(BIN))
-SREC	:= $(addprefix $(obj),$(SREC))
+#BIN	:= $(addprefix $(obj),$(BIN))
+#SREC	:= $(addprefix $(obj),$(SREC))
 
 gcclibdir := $(shell dirname `$(CC) -print-libgcc-file-name`)
 

@@ -20,7 +20,7 @@
 #include <linux/mtd/compat.h>
 
 /* Our partition linked list */
-struct list_head mtd_partitions;
+struct list_head mtd_partitions={0};
 
 /* Our partition node structure */
 struct mtd_part {
@@ -472,5 +472,15 @@ int add_mtd_partitions(struct mtd_info *master,
 		cur_offset = slave->offset + slave->mtd.size;
 	}
 
+	return 0;
+}
+unsigned int get_mtd_size(char *name)
+{
+	struct mtd_part *slave, *next;
+	list_for_each_entry_safe(slave, next, &mtd_partitions, list) {
+		if (!strcmp(slave->mtd.name, name)) {
+			return slave->mtd.size;
+		}
+	}
 	return 0;
 }

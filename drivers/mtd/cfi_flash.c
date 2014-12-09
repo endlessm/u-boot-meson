@@ -69,7 +69,7 @@ static uint flash_verbose = 1;
 #define flash_verbose 1
 #endif
 
-flash_info_t flash_info[CFI_MAX_FLASH_BANKS];	/* FLASH chips info */
+flash_info_t flash_info[CFI_MAX_FLASH_BANKS]={0};	/* FLASH chips info */
 
 /*
  * Check if chip width is defined. If not, start detecting with 8bit.

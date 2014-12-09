@@ -11,7 +11,7 @@
 #include <linux/mtd/compat.h>
 #include <ubi_uboot.h>
 
-struct mtd_info *mtd_table[MAX_MTD_DEVICES];
+struct mtd_info *mtd_table[MAX_MTD_DEVICES]={0};
 
 int add_mtd_device(struct mtd_info *mtd)
 {

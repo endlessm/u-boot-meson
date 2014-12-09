@@ -50,12 +50,35 @@ static void setup_initrd_tag (bd_t *bd, ulong initrd_start,
 # endif
 static void setup_end_tag (bd_t *bd);
 
+#if defined(CONFIG_CMD_NAND)	
+extern void aml_nand_set_reg_default_hynix(void);
+#endif
 static struct tag *params;
 #endif /* CONFIG_SETUP_MEMORY_TAGS || CONFIG_CMDLINE_TAG || CONFIG_INITRD_TAG */
 
 static ulong get_sp(void);
 #if defined(CONFIG_OF_LIBFDT)
 static int bootm_linux_fdt(int machid, bootm_headers_t *images);
+#endif
+
+#ifdef CONFIG_UBOOT_BATTERY_PARAMETERS 
+#include <amlogic/battery_parameter.h>
+static void setup_battery_tag(struct tag **in_params)
+{
+    struct battery_parameter *cfg;
+    cfg = get_battery_para();
+    if (!cfg) {                             // nothing got from enviroment argument
+        return ;
+    }
+
+    /*
+     * copy data to params, will pass them to kernel
+     */
+	params->hdr.tag = ATAG_BATTERY;
+	params->hdr.size = tag_size(tag_battery);
+    memcpy(&params->u.board_battery.battery_para, cfg, sizeof(struct battery_parameter));
+	params = tag_next (params);
+}
 #endif
 
 void arch_lmb_reserve(struct lmb *lmb)
@@ -84,6 +107,9 @@ static void announce_and_cleanup(void)
 {
 	printf("\nStarting kernel ...\n\n");
 
+#if defined(CONFIG_CMD_NAND)	
+//	aml_nand_set_reg_default_hynix();
+#endif
 #ifdef CONFIG_USB_DEVICE
 	{
 		extern void udc_disconnect(void);
@@ -97,7 +123,8 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 {
 	bd_t	*bd = gd->bd;
 	char	*s;
-	int	machid = bd->bi_arch_number;
+	int	machid = 0;
+	int  machidenv = bd->bi_arch_number;	
 	void	(*kernel_entry)(int zero, int arch, uint params);
 
 #ifdef CONFIG_CMDLINE_TAG
@@ -109,9 +136,35 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 
 	s = getenv ("machid");
 	if (s) {
-		machid = simple_strtoul (s, NULL, 16);
-		printf ("Using machid 0x%x from environment\n", machid);
+		machidenv = simple_strtoul (s, NULL, 16);
+		printf ("machid from environment: 0x%x \n", machidenv);
 	}
+
+#ifdef CONFIG_EFUSE
+	extern	unsigned efuse_readcustomerid(void);
+	int machidefuse = (int)efuse_readcustomerid();
+	char buf[5];
+	if(machidefuse != 0){
+		machid = machidefuse;
+		printf ("Using machid 0x%x from EFUSE\n", machid);
+		if(s && (machidefuse != machidenv)){
+			memset(buf, 0, 5);
+			sprintf(buf, "%x", machidefuse);
+			setenv("machid", buf);
+#if defined(CONFIG_CMD_SAVEENV) && !defined(CONFIG_ENV_IS_NOWHERE)
+			saveenv();
+#endif
+		}		
+	}
+	else{
+			machid = machidenv;		
+			printf ("EFUSE machid is not set.\n");
+			printf ("Using machid 0x%x from environment\n", machid);
+	}		
+#else
+	machid = machidenv;		
+	printf ("Using machid 0x%x from environment\n", machid);
+#endif	
 
 	show_boot_progress (15);
 
@@ -143,13 +196,22 @@ int do_bootm_linux(int flag, int argc, char *argv[], bootm_headers_t *images)
 #ifdef CONFIG_CMDLINE_TAG
 	setup_commandline_tag (bd, commandline);
 #endif
+
+#ifdef CONFIG_UBOOT_BATTERY_PARAMETERS 
+    setup_battery_tag(&params);
+#endif
+
 #ifdef CONFIG_INITRD_TAG
 	if (images->rd_start && images->rd_end)
 		setup_initrd_tag (bd, images->rd_start, images->rd_end);
 #endif
 	setup_end_tag(bd);
 #endif
-
+/*
+	// Normal World can not access address 0
+	if(strcmp(getenv("dbgkernel"),"y")==0)
+		asm volatile ("wfi");
+*/		
 	announce_and_cleanup();
 
 	kernel_entry(0, machid, bd->bi_boot_params);
@@ -189,6 +251,9 @@ static int bootm_linux_fdt(int machid, bootm_headers_t *images)
 	kernel_entry = (void (*)(int, int, void *))images->ep;
 
 	rd_len = images->rd_end - images->rd_start;
+#if defined(CONFIG_ANDROID_IMG) & defined(CONFIG_OF_LIBFDT)
+	get_relocate_addr(of_flat_tree,images->rd_end - images->rd_start,images->ft_len);
+#endif
 	ret = boot_ramdisk_high(lmb, images->rd_start, rd_len,
 				initrd_start, initrd_end);
 	if (ret)

@@ -29,6 +29,8 @@
 #include <malloc.h>
 #include <spi_flash.h>
 
+#ifndef CONFIG_AMLOGIC_SPI_FLASH 
+
 #include "spi_flash_internal.h"
 
 /* S25FLxx-specific commands */
@@ -65,6 +67,20 @@ struct spansion_spi_flash_params {
 	const char *name;
 };
 
+#else /*else CONFIG_AMLOGIC_SPI_FLASH*/
+
+#include "spi_flash_amlogic.h"
+
+struct spansion_spi_flash_params {
+	uint32_t	id;
+	uint32_t	sector_size;
+	uint32_t	block_size;
+	uint32_t	chip_size;
+	const char	*name;
+};
+
+#endif /*CONFIG_AMLOGIC_SPI_FLASH*/
+
 struct spansion_spi_flash {
 	struct spi_flash flash;
 	const struct spansion_spi_flash_params *params;
@@ -75,6 +91,8 @@ static inline struct spansion_spi_flash *to_spansion_spi_flash(struct spi_flash
 {
 	return container_of(flash, struct spansion_spi_flash, flash);
 }
+
+#ifndef CONFIG_AMLOGIC_SPI_FLASH
 
 static const struct spansion_spi_flash_params spansion_spi_flash_table[] = {
 	{
@@ -134,6 +152,74 @@ static const struct spansion_spi_flash_params spansion_spi_flash_table[] = {
 		.name = "S25FL032P",
 	},
 };
+
+#else /*else CONFIG_AMLOGIC_SPI_FLASH*/
+
+#define SPSN_ID_S25FL008A	0x0213
+#define SPSN_ID_S25FL016A	0x0214
+#define SPSN_ID_S25FL032A	0x0215
+#define SPSN_ID_S25FL064A	0x0216
+#define SPSN_ID_S25FL128P	0x2018
+#define SPSN_EXT_ID_S25FL128P_256KB	0x0300
+#define SPSN_EXT_ID_S25FL128P_64KB	0x0301
+#define SPSN_EXT_ID_S25FL032P		0x4d00
+
+static const struct spansion_spi_flash_params spansion_spi_flash_table[] = {
+	{	.id			 = SPSN_ID_S25FL032A,
+		.sector_size = 64*1024,
+		.block_size	 = 64*1024 ,
+		.chip_size	 = 64*64*1024,
+		.name		 = "S25FL032A",
+	},	
+};	 
+//new solution for Amlogic SPI controller 
+//
+//
+static int spansion_write(struct spi_flash *flash, u32 offset, size_t len, const void *buf)
+{	
+	int nReturn = 0;
+	
+	spi_claim_bus(flash->spi);
+    
+    nReturn = spi_flash_write_amlogic(flash, offset, len,buf);
+    
+    spi_release_bus(flash->spi);
+
+	return nReturn;
+}
+
+static int spansion_read_fast(struct spi_flash *flash, u32 offset, size_t len, void *buf)
+{
+	int nReturn =0;
+	
+	spi_claim_bus(flash->spi);
+
+	//dummy read for env load fail ??
+    nReturn = spi_flash_read_amlogic(flash, offset, len,buf);
+	nReturn = spi_flash_read_amlogic(flash, offset, len,buf);
+
+    spi_release_bus(flash->spi);
+
+	return nReturn;
+}
+static int spansion_erase(struct spi_flash *flash, u32 offset, size_t len)
+{
+	struct spansion_spi_flash *stm = to_spansion_spi_flash(flash);
+	u32 sector_size;
+	int nReturn;
+
+	sector_size = stm->params->sector_size;
+
+	spi_claim_bus(flash->spi);	
+	nReturn = spi_flash_erase_be_amlogic(flash, offset, len, sector_size);
+	
+	spi_release_bus(flash->spi);
+
+	return nReturn;
+}
+#endif /*CONFIG_AMLOGIC_SPI_FLASH*/
+
+#ifndef CONFIG_AMLOGIC_SPI_FLASH
 
 static int spansion_wait_ready(struct spi_flash *flash, unsigned long timeout)
 {
@@ -311,6 +397,8 @@ int spansion_erase(struct spi_flash *flash, u32 offset, size_t len)
 	spi_release_bus(flash->spi);
 	return ret;
 }
+#endif /*CONFIG_AMLOGIC_SPI_FLASH*/
+
 
 struct spi_flash *spi_flash_probe_spansion(struct spi_slave *spi, u8 *idcode)
 {
@@ -324,10 +412,13 @@ struct spi_flash *spi_flash_probe_spansion(struct spi_slave *spi, u8 *idcode)
 
 	for (i = 0; i < ARRAY_SIZE(spansion_spi_flash_table); i++) {
 		params = &spansion_spi_flash_table[i];
-		if (params->idcode1 == jedec) {
-			if (params->idcode2 == ext_jedec)
-				break;
-		}
+#ifndef CONFIG_AMLOGIC_SPI_FLASH
+		if (params->idcode1 == idcode[2])
+			break;
+#else 
+		if (((idcode[1] << 8) | idcode[2]) == params->id)
+			break;
+#endif /*CONFIG_AMLOGIC_SPI_FLASH*/		
 	}
 
 	if (i == ARRAY_SIZE(spansion_spi_flash_table)) {
@@ -348,12 +439,16 @@ struct spi_flash *spi_flash_probe_spansion(struct spi_slave *spi, u8 *idcode)
 	spsn->flash.write = spansion_write;
 	spsn->flash.erase = spansion_erase;
 	spsn->flash.read = spansion_read_fast;
+
+#ifndef CONFIG_AMLOGIC_SPI_FLASH
 	spsn->flash.size = params->page_size * params->pages_per_sector
 	    * params->nr_sectors;
+#else
+	spsn->flash.size = params->chip_size;
+#endif /*CONFIG_AMLOGIC_SPI_FLASH*/
 
-	printf("SF: Detected %s with page size %u, total ",
-	       params->name, params->page_size);
-	print_size(spsn->flash.size, "\n");
+	debug("SF: Detected %s with page size %u, total %u bytes\n",
+	      params->name, params->page_size, eon->flash.size);
 
 	return &spsn->flash;
 }

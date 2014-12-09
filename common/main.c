@@ -38,11 +38,31 @@
 #include <hush.h>
 #endif
 
+#ifdef CONFIG_EFUSE
+#include <amlogic/efuse.h>
+#endif
+
 #include <post.h>
 
 #if defined(CONFIG_SILENT_CONSOLE) || defined(CONFIG_POST) || defined(CONFIG_CMDLINE_EDITING)
 DECLARE_GLOBAL_DATA_PTR;
 #endif
+
+#ifdef CONFIG_UBOOT_BATTERY_PARAMETER_TEST
+#ifdef CONFIG_AW_AXP20
+#include <axp-mfd.h>
+#endif
+#ifdef CONFIG_AML_PMU
+#include <amlogic/aml_pmu.h>
+#endif
+#endif
+
+#if defined(AML_UBOOT_LOG_PROFILE)
+extern int __g_nTE1_4BC722B3__ ;
+extern int __g_nTE2_4BC722B3__ ;
+extern int __g_nTEFlag_4BC722B3__;
+extern int __g_nTStep_4BC722B3__;
+#endif //AML_UBOOT_LOG_PROFILE
 
 /*
  * Board-specific Platform code can reimplement show_boot_progress () if needed
@@ -208,56 +228,134 @@ static int menukey = 0;
 static __inline__ int abortboot(int bootdelay)
 {
 	int abort = 0;
+	char cKey = 0; //for key filter, only "enter" key can triger abort
+#ifdef CONFIG_UBOOT_BATTERY_PARAMETER_TEST
+    char key;
+#endif
 
 #ifdef CONFIG_MENUPROMPT
 	printf(CONFIG_MENUPROMPT);
 #else
-	printf("Hit any key to stop autoboot: %2d ", bootdelay);
+	fprintf(stdout, "Hit Enter key to stop autoboot -- : %2d ", bootdelay);
 #endif
 
 #if defined CONFIG_ZERO_BOOTDELAY_CHECK
-	/*
-	 * Check if key already pressed
-	 * Don't check if bootdelay < 0
-	 */
-	if (bootdelay >= 0) {
-		if (tstc()) {	/* we got a key press	*/
-			(void) getc();  /* consume input	*/
-			puts ("\b\b\b 0");
-			abort = 1;	/* don't auto boot	*/
-		}
-	}
+    /*
+     * Check if key already pressed
+     * Don't check if bootdelay < 0
+     */
+    if (bootdelay >= 0) {
+#ifdef CONFIG_CRLC_TO_STOP_ATOBOOT
+        //int key = getc();
+        if (tstc()) {
+            switch (getc()) {
+            case 0x03:      /* ^C - Ctrl+C */
+                abort = 1;
+                break;
+            case 0x0d:      /* Enter */
+                abort = 1;
+                break;
+            case 0x20:      /* Space */
+                abort = 1;
+                break;
+            default:
+                break;
+            }
+        }
+    //    printf("CONFIG_CRLC_TO_STOP_ATOBOOT test ctrl c / enter / space tab\n");
+#else
+        if (tstc()) {   /* we got a key press   */
+            (void) getc();  /* consume input    */
+            puts ("\b\b\b 0");
+            abort = 1;  /* don't auto boot  */
+        }
+#endif
+    }
 #endif
 
-	while ((bootdelay > 0) && (!abort)) {
-		int i;
+    char *s_us = getenv ("us_delay_step");
+    int delay_us = s_us ? (int)simple_strtol(s_us, NULL, 10) : 0;
+    //printf("\n ----- delay ms : %d \n",delay_ms);
+
+    if (abort == 1) {
+         //Disable Watchdog
+        writel(0, 0xc1109900);
+    }
+
+#if defined(CONFIG_VLSI_EMULATOR)
+	#define BOOT_DELAY_UNIT_US (100)
+#else
+	#define BOOT_DELAY_UNIT_US (10000)
+#endif //CONFIG_VLSI_EMULATOR
+
+	if((!delay_us) ||(delay_us > BOOT_DELAY_UNIT_US))
+		delay_us = BOOT_DELAY_UNIT_US;
+
+#undef BOOT_DELAY_UNIT_US
+
+    unsigned int sect = get_timer(0);// 1---> 20ms
+   // printf("get_timer0 = %d \n",t1);
+
+    while ((bootdelay > 0) && (!abort)) {
+        int i;
 
 		--bootdelay;
 		/* delay 100 * 10ms */
 		for (i=0; !abort && i<100; ++i) {
 			if (tstc()) {	/* we got a key press	*/
-				abort  = 1;	/* don't auto boot	*/
-				bootdelay = 0;	/* no more delay	*/
+				printf("tstc enter\n");
 # ifdef CONFIG_MENUKEY
 				menukey = getc();
+				cKey = menukey;
+            #ifdef CONFIG_UBOOT_BATTERY_PARAMETER_TEST
+                key = menukey;
+            #endif
 # else
-				(void) getc();  /* consume input	*/
+            #ifdef CONFIG_UBOOT_BATTERY_PARAMETER_TEST
+				key = getc();  /* consume input	*/
+				cKey = key;
+            #else
+                cKey = getc();
+            #endif
 # endif
-				break;
+	            switch (cKey) {
+	            case 0x03:      /* ^C - Ctrl+C */
+	            case 0x0d:      /* Enter */
+	            case 0x20:      /* Space */
+	                abort = 1;
+	                break;
+	            default:
+	                break;
+	            }
 			}
-			udelay(10000);
+
+			udelay(delay_us); ///100 X 10000us = 1S
+
 		}
 
-		printf("\b\b\b%2d ", bootdelay);
+		if(!abort)
+			printf("\b\b\b%2d ", bootdelay);
 	}
 
-	putc('\n');
+	fputc(stdout, '\n');
 
 #ifdef CONFIG_SILENT_CONSOLE
 	if (abort)
 		gd->flags &= ~GD_FLG_SILENT;
 #endif
 
+#ifdef CONFIG_UBOOT_BATTERY_PARAMETER_TEST
+    if (key == 'b' || key == 'B') {
+        printf("\nNow will go to battery calibrate mode\n");
+    #ifdef CONFIG_AW_AXP20
+        axp_battery_calibrate();
+    #endif
+    #ifdef CONFIG_AML_PMU
+        aml_battery_calibrate();
+    #endif
+    }
+#endif
+	printf("exit abortboot: %d\n",abort);
 	return abort;
 }
 # endif	/* CONFIG_AUTOBOOT_KEYED */
@@ -288,6 +386,19 @@ void main_loop (void)
 	char bcs_set[16];
 #endif /* CONFIG_BOOTCOUNT_LIMIT */
 
+#ifdef CONFIG_EFUSE
+	//char *r_addr;
+//	char *r_efus;
+	char addr[20];
+	char efuse_data[20];
+	efuseinfo_item_t info;
+	int i;
+#endif
+
+
+	AML_LOG_INIT("main");
+	AML_LOG_TE("main");
+
 #if defined(CONFIG_VFD) && defined(VFD_TEST_LOGO)
 	ulong bmp = 0;		/* default bitmap */
 	extern int trab_vfd (ulong bitmap);
@@ -298,6 +409,8 @@ void main_loop (void)
 #endif
 	trab_vfd (bmp);
 #endif	/* CONFIG_VFD && VFD_TEST_LOGO */
+
+	AML_LOG_TE("main");
 
 #ifdef CONFIG_BOOTCOUNT_LIMIT
 	bootcount = bootcount_load();
@@ -320,6 +433,8 @@ void main_loop (void)
 	}
 #endif  /* CONFIG_MODEM_SUPPORT */
 
+	AML_LOG_TE("main");
+
 #ifdef CONFIG_VERSION_VARIABLE
 	{
 		extern char version_string[];
@@ -327,6 +442,8 @@ void main_loop (void)
 		setenv ("ver", version_string);  /* set version variable */
 	}
 #endif /* CONFIG_VERSION_VARIABLE */
+
+	AML_LOG_TE("main");
 
 #ifdef CONFIG_SYS_HUSH_PARSER
 	u_boot_hush_start ();
@@ -336,11 +453,57 @@ void main_loop (void)
 	hush_init_var ();
 #endif
 
+	AML_LOG_TE("main");
+
+#ifdef CONFIG_AML_SUSPEND
+#ifndef CONFIG_MESON_TRUSTZONE
+extern void init_suspend_firmware(void);
+	init_suspend_firmware();
+#else
+	meson_trustzone_suspend_init();
+#endif
+#endif
+
+	AML_LOG_TE("main");
+
+#ifdef CONFIG_AML_SECURE
+extern void init_secure_firmware(void);
+	init_secure_firmware();
+#endif
+
+	 AML_LOG_TE("main");
+
+#ifdef CONFIG_CMD_CHIPREV
+	extern int init_env_chiprev(void);
+	char env_bootargs[256];
+	init_env_chiprev();
+	memset(env_bootargs, 0, 18);
+	sprintf(env_bootargs, "%s chiprev=%s", getenv("bootargs"), getenv("chiprev"));
+	setenv("bootargs", env_bootargs);
+	printf("bootargs = %s\n", env_bootargs);
+#endif
+
+	AML_LOG_TE("main");
+
+#if defined(CONFIG_AML_MESON_8)&&defined(CONFIG_EFUSE)&&defined(CONFIG_VIDEO_AMLTVOUT)
+	extern void cvbs_trimming(void);
+	cvbs_trimming();
+#endif
+
+#ifdef CONFIG_CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT
+	extern void cvbs_performance_config(void);
+	cvbs_performance_config();
+#endif
+
+	AML_LOG_TE("main");
+
 #ifdef CONFIG_PREBOOT
 	if ((p = getenv ("preboot")) != NULL) {
 # ifdef CONFIG_AUTOBOOT_KEYED
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
 # endif
+
+	AML_LOG_TE("main");
 
 # ifndef CONFIG_SYS_HUSH_PARSER
 		run_command (p, 0);
@@ -349,15 +512,48 @@ void main_loop (void)
 				    FLAG_EXIT_FROM_LOOP);
 # endif
 
+	AML_LOG_TE("main");
+
 # ifdef CONFIG_AUTOBOOT_KEYED
 		disable_ctrlc(prev);	/* restore Control C checking */
 # endif
 	}
 #endif /* CONFIG_PREBOOT */
 
+	AML_LOG_TE("main");
+
 #if defined(CONFIG_UPDATE_TFTP)
 	update_tftp ();
 #endif /* CONFIG_UPDATE_TFTP */
+
+	AML_LOG_TE("main");
+
+
+#ifdef CONFIG_SWITCH_BOOT_MODE
+extern int switch_boot_mode(void);
+	switch_boot_mode();
+#endif
+
+	AML_LOG_TE("main");
+
+#ifdef CONFIG_EFUSE
+	//r_addr = getenv ("ethaddr");
+	if(efuse_getinfo("mac", &info) == 0){
+		memset(efuse_data, 0, sizeof(efuse_data));		
+		efuse_read_usr(efuse_data, info.data_len, (loff_t*)&info.offset);
+		for(i=0; i<info.data_len; i++){
+			if(efuse_data[i] != 0)
+				break;
+		}
+		if(i<info.data_len){
+			memset(addr,0,sizeof(addr));
+			sprintf(addr,"%02x:%02x:%02x:%02x:%02x:%02x",efuse_data[0],efuse_data[1],efuse_data[2],efuse_data[3],efuse_data[4],efuse_data[5]);
+			setenv ("ethaddr", addr);
+		}		
+	}
+#endif
+
+	AML_LOG_TE("main");
 
 #if defined(CONFIG_BOOTDELAY) && (CONFIG_BOOTDELAY >= 0)
 	s = getenv ("bootdelay");
@@ -368,6 +564,9 @@ void main_loop (void)
 # ifdef CONFIG_BOOT_RETRY_TIME
 	init_cmd_timeout ();
 # endif	/* CONFIG_BOOT_RETRY_TIME */
+
+
+	AML_LOG_TE("main");
 
 #ifdef CONFIG_POST
 	if (gd->flags & GD_FLG_POSTFAIL) {
@@ -404,6 +603,9 @@ void main_loop (void)
 # endif
 	}
 
+	AML_LOG_TE("main");
+
+
 # ifdef CONFIG_MENUKEY
 	if (menukey == CONFIG_MENUKEY) {
 	    s = getenv("menucmd");
@@ -422,8 +624,14 @@ void main_loop (void)
 	/*
 	 * Main Loop for Monitor Command Processing
 	 */
+
+	AML_LOG_TE("main");
+
 #ifdef CONFIG_SYS_HUSH_PARSER
 	parse_file_outer();
+
+	AML_LOG_TE("main");
+
 	/* This point is never reached */
 	for (;;);
 #else
@@ -1382,18 +1590,22 @@ int run_command (const char *cmd, int flag)
 #endif
 
 		/* OK - call function to do the command */
+		rc = (cmdtp->cmd) (cmdtp, flag, argc, argv);
+/*
 		if ((cmdtp->cmd) (cmdtp, flag, argc, argv) != 0) {
 			rc = -1;
 		}
 
 		repeatable &= cmdtp->repeatable;
 
-		/* Did the user stop this? */
+		/* Did the user stop this? 
 		if (had_ctrlc ())
 			return -1;	/* if stopped then not repeatable */
+		
 	}
 
-	return rc ? rc : repeatable;
+	//return rc ? rc : repeatable;
+	return rc;
 }
 
 /****************************************************************************/

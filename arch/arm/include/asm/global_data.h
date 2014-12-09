@@ -73,6 +73,10 @@ typedef	struct	global_data {
 #if !(defined(CONFIG_SYS_NO_ICACHE) && defined(CONFIG_SYS_NO_DCACHE))
 	unsigned long	tlb_addr;
 #endif
+#if defined(CONFIG_POST) || defined(CONFIG_LOGBUFFER)
+	unsigned long post_log_word;	/* Record POST activities */
+	unsigned long post_init_f_time;	/* When post_init_f started */
+#endif
 	void		**jt;		/* jump table */
 	char		env_buf[32];	/* buffer for getenv() before reloc. */
 } gd_t;

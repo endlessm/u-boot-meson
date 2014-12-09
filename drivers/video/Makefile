@@ -42,6 +42,46 @@ COBJS-$(CONFIG_VIDEO_SM501) += sm501.o
 COBJS-$(CONFIG_VIDEO_SMI_LYNXEM) += smiLynxEM.o videomodes.o
 COBJS-$(CONFIG_VIDEO_VCXK) += bus_vcxk.o
 
+ifdef CONFIG_AML_MESON
+ifdef CONFIG_M3_WA_REF_V1
+COBJS-$(CONFIG_VIDEO_AML) += aml_video.o \
+	osd/canvas.o \
+	osd/m3_osd_hw.o
+else ifdef CONFIG_AML_MESON_8
+COBJS-$(CONFIG_VIDEO_AML) += aml_video.o \
+	osd/canvas.o \
+	osd/m8_osd_hw.o
+else
+COBJS-$(CONFIG_VIDEO_AML) += aml_video.o \
+	osd/canvas.o \
+	osd/osd_hw.o
+endif
+COBJS-$(CONFIG_VIDEO_AMLLCD) += lcd/aml_lcd.o
+COBJS-$(CONFIG_VIDEO_AMLLCD) += lcd/lcdoutc.o
+COBJS-$(CONFIG_AML_LCD_EXTERN_I2C_TC101) += lcd/lcd_extern/i2c_tc101.o
+COBJS-$(CONFIG_AML_LCD_EXTERN_SPI_LD070WS2) += lcd/lcd_extern/spi_LD070WS2.o
+COBJS-$(CONFIG_AML_LCD_EXTERN_MIPI_N070ICN) += lcd/lcd_extern/mipi_N070ICN.o
+COBJS-$(CONFIG_AML_BL_EXTERN_PMU_AML1218) += lcd/bl_extern/pmu_aml1218.o
+COBJS-$(CONFIG_AML_BL_EXTERN_I2C_LP8556) += lcd/bl_extern/i2c_lp8556.o
+COBJS-$(CONFIG_AML_BL_EXTERN_MIPI_LT070ME05) += lcd/bl_extern/mipi_LT070ME05.o
+COBJS-$(CONFIG_VIDEO_AMLTVOUT) += tvout/aml_tvout.o  \
+	tvout/tv_out.o
+
+ifdef CONFIG_AML_HDMI_TX
+#ifdef CONFIG_AML_MESON_8
+COBJS-$(CONFIG_VIDEO_AMLTVOUT) += tvout/hdmi_tx.o
+#endif
+#ifdef CONFIG_AML_MESON_6
+#COBJS-$(CONFIG_VIDEO_AMLTVOUT) += tvout/hdmi_tx_meson.o \
+#	tvout/hdmi_tx_reg.o \
+#	tvout/hdmi_tx.o \
+#	tvout/hdmi_tx_edid.o \
+#	tvout/hdmi_tx_video.o \
+#	tvout/enc_clk_config.o
+#endif
+endif
+endif
+
 COBJS	:= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS))

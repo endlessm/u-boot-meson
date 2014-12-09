@@ -17,7 +17,12 @@
 #ifdef CONFIG_STATUS_LED
 #include <status_led.h>
 #endif
-
+#define CONFIG_BOOTP_SUBNETMASK
+#define CONFIG_BOOTP_HOSTNAME
+#define CONFIG_BOOTP_BOOTFILESIZE
+#define CONFIG_BOOTP_SUBNETMASK
+#define CONFIG_BOOTP_GATEWAY
+#define CONFIG_BOOTP_BOOTFILESIZE
 #define BOOTP_VENDOR_MAGIC	0x63825363	/* RFC1048 Magic Cookie		*/
 
 #define TIMEOUT		5000UL	/* Milliseconds before trying BOOTP again */

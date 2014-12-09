@@ -253,8 +253,10 @@ static int post_run_single (struct post_test *test,
 
 			if (test_flags & POST_PREREL)
 				post_log_mark_start ( test->testid );
-			else
-				post_log ("POST %s ", test->cmd);
+#ifndef CONFIG_POST_AML				
+ 			else
+ 				post_log ("POST %s ", test->cmd);
+#endif	
 		}
 
 		show_post_progress(i, POST_BEFORE, POST_FAILED);
@@ -273,7 +275,11 @@ static int post_run_single (struct post_test *test,
 			}
 		} else {
 		if ((*test->test) (flags) != 0) {
-			post_log ("FAILED\n");
+#ifdef CONFIG_POST_AML			
+			post_log ("POST %s FAILED\n", test->cmd);
+#else			
+ 			post_log ("FAILED\n");
+#endif			
 			show_boot_progress (-32);
 			show_post_progress(i, POST_AFTER, POST_FAILED);
 			if (test_flags & POST_CRITICAL)
@@ -282,7 +288,11 @@ static int post_run_single (struct post_test *test,
 				gd->flags |= GD_FLG_POSTSTOP;
 		}
 		else
+#ifdef 	CONFIG_POST_AML			
+			post_log ("POST %s PASSED\n", test->cmd);			
+#else			
 			post_log ("PASSED\n");
+#endif			
 			show_post_progress(i, POST_AFTER, POST_PASSED);
 		}
 

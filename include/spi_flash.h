@@ -26,6 +26,7 @@
 #include <spi.h>
 #include <linux/types.h>
 
+
 struct spi_flash_region {
 	unsigned int	count;
 	unsigned int	size;
@@ -35,6 +36,11 @@ struct spi_flash {
 	struct spi_slave *spi;
 
 	const char	*name;
+
+#ifdef CONFIG_SPI_NOR_SECURE_STORAGE
+	unsigned secure_protect;
+	struct aml_spisecurestorage_info_t *securestorage_info;
+#endif
 
 	u32		size;
 

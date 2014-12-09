@@ -16,6 +16,12 @@
 #include <malloc.h>
 #include <spi_flash.h>
 
+#ifdef CONFIG_AMLOGIC_SPI_FLASH 
+
+#include "spi_flash_amlogic.h"
+
+#else //else CONFIG_AMLOGIC_SPI_FLASH
+
 #include "spi_flash_internal.h"
 
 #define CMD_SST_WREN		0x06	/* Write Enable */
@@ -35,6 +41,8 @@
 #define SST_SR_BP2		(1 << 4)	/* Block Protection 2 */
 #define SST_SR_AAI		(1 << 6)	/* Addressing mode */
 #define SST_SR_BPL		(1 << 7)	/* BP bits lock */
+
+#endif //else end for CONFIG_AMLOGIC_SPI_FLASH
 
 struct sst_spi_flash_params {
 	u8 idcode1;
@@ -88,6 +96,27 @@ static const struct sst_spi_flash_params sst_spi_flash_table[] = {
 		.name = "SST25WF040",
 	},
 };
+
+
+#ifdef CONFIG_AMLOGIC_SPI_FLASH 
+//new solution for Amlogic SPI controller 
+//
+//
+static int sst_write(struct spi_flash *flash, u32 offset, size_t len, const void *buf)
+{
+	return 0;
+}
+
+static int sst_read_fast(struct spi_flash *flash, u32 offset, size_t len, void *buf)
+{
+	return 0;
+}
+int sst_erase(struct spi_flash *flash, u32 offset, size_t len)
+{
+	return 0;
+}
+
+#else //else for CONFIG_AMLOGIC_SPI_FLASH, keep former for rollback verify
 
 static int
 sst_wait_ready(struct spi_flash *flash, unsigned long timeout)
@@ -331,6 +360,8 @@ sst_unlock(struct spi_flash *flash)
 	return ret;
 }
 
+#endif // else end for CONFIG_AMLOGIC_SPI_FLASH
+
 struct spi_flash *
 spi_flash_probe_sst(struct spi_slave *spi, u8 *idcode)
 {
@@ -369,7 +400,13 @@ spi_flash_probe_sst(struct spi_slave *spi, u8 *idcode)
 	print_size(stm->flash.size, "\n");
 
 	/* Flash powers up read-only, so clear BP# bits */
-	sst_unlock(&stm->flash);
+	#ifdef CONFIG_AMLOGIC_SPI_FLASH
+	printf("Please implement sst SPI unlock function!");
+	while(1){
+	}
+	#else
+	sst_unlock(&stm->flash);	
+	#endif
 
 	return &stm->flash;
 }

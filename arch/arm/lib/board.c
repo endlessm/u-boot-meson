@@ -49,6 +49,14 @@
 #include <nand.h>
 #include <onenand_uboot.h>
 #include <mmc.h>
+#include <asm/cache.h>
+
+#include <asm/arch/reboot.h>
+#include <partition_table.h>
+
+#ifdef CONFIG_AML_RTC
+#include <aml_rtc.h>
+#endif
 
 #ifdef CONFIG_BITBANGMII
 #include <miiphy.h>
@@ -60,6 +68,17 @@
 #ifdef CONFIG_DRIVER_LAN91C96
 #include "../drivers/net/lan91c96.h"
 #endif
+
+#ifdef CONFIG_POST
+#include <post.h>
+#endif
+#ifdef CONFIG_LOGBUFFER
+#include <logbuff.h>
+#endif
+
+#if defined(CONFIG_AML_V2_USBTOOL)
+#include <amlogic/aml_v2_burning.h>
+#endif// #if defined(CONFIG_AML_V2_USBTOOL)
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -86,6 +105,19 @@ extern void rtl8019_get_enetaddr (uchar * addr);
 #include <i2c.h>
 #endif
 
+#ifdef CONFIG_VIDEO_AMLLCD
+extern int aml_lcd_init(void);
+#endif
+
+// Pre-clear hdmi hdcp ksv ram
+extern int hdmi_hdcp_clear_ksv_ram(void);
+
+#if defined(AML_UBOOT_LOG_PROFILE)
+int __g_nTE1_4BC722B3__ = 0 ;
+int __g_nTE2_4BC722B3__ = 0 ;
+int __g_nTEFlag_4BC722B3__ = 0;
+int __g_nTStep_4BC722B3__ = 0;
+#endif //AML_UBOOT_LOG_PROFILE
 
 /************************************************************************
  * Coloured LED functionality
@@ -127,10 +159,13 @@ static int init_baudrate (void)
 	char tmp[64];	/* long enough for environment variables */
 	int i = getenv_f("baudrate", tmp, sizeof (tmp));
 
+#if !defined (CONFIG_VLSI_EMULATOR)
 	gd->baudrate = (i > 0)
 			? (int) simple_strtoul (tmp, NULL, 10)
 			: CONFIG_BAUDRATE;
-
+#else
+	gd->baudrate = 1930;
+#endif
 	return (0);
 }
 
@@ -236,6 +271,10 @@ void __dram_init_banksize(void)
 void dram_init_banksize(void)
 	__attribute__((weak, alias("__dram_init_banksize")));
 
+#ifdef CONFIG_AML_EFUSE_INIT_PLUS
+extern int efuse_aml_init_plus(void);
+#endif //CONFIG_AML_EFUSE_INIT_PLUS
+
 init_fnc_t *init_sequence[] = {
 #if defined(CONFIG_ARCH_CPU_INIT)
 	arch_cpu_init,		/* basic arch cpu dependent setup */
@@ -249,7 +288,9 @@ init_fnc_t *init_sequence[] = {
 #endif
 	env_init,		/* initialize environment */
 	init_baudrate,		/* initialze baudrate settings */
-	serial_init,		/* serial communications setup */
+#if !defined (CONFIG_VLSI_EMULATOR)
+	//serial_init,		/* serial communications setup */
+#endif //#if !defined (CONFIG_VLSI_EMULATOR)
 	console_init_f,		/* stage 1 init of console */
 	display_banner,		/* say that we are here */
 #if defined(CONFIG_DISPLAY_CPUINFO)
@@ -261,13 +302,26 @@ init_fnc_t *init_sequence[] = {
 #if defined(CONFIG_HARD_I2C) || defined(CONFIG_SOFT_I2C)
 	init_func_i2c,
 #endif
+#ifdef CONFIG_AML_RTC
+	aml_rtc_init,
+#endif
 	dram_init,		/* configure available RAM banks */
 #if defined(CONFIG_CMD_PCI) || defined (CONFIG_PCI)
 	arm_pci_init,
 #endif
+   hdmi_hdcp_clear_ksv_ram,
+#ifdef CONFIG_AML_EFUSE_INIT_PLUS
+    efuse_aml_init_plus,
+#endif //CONFIG_AML_EFUSE_INIT_PLUS
 	NULL,
 };
 
+#ifdef TEST_UBOOT_BOOT_SPEND_TIME
+#include <asm/arch/timer.h>
+unsigned int spl_boot_end,lib_board_init_f_start,lib_board_init_f_end;
+unsigned int lib_board_init_r_start,main_loop_start;
+#endif
+extern ulong __mmu_table;
 void board_init_f (ulong bootflag)
 {
 	bd_t *bd;
@@ -282,7 +336,8 @@ void board_init_f (ulong bootflag)
 
 	memset ((void*)gd, 0, sizeof (gd_t));
 
-	gd->mon_len = _bss_end_ofs;
+	//gd->mon_len = _bss_end_ofs;
+	gd->mon_len = _uboot_end_ofs;
 
 	for (init_fnc_ptr = init_sequence; *init_fnc_ptr; ++init_fnc_ptr) {
 		if ((*init_fnc_ptr)() != 0) {
@@ -311,6 +366,16 @@ void board_init_f (ulong bootflag)
 
 	addr = CONFIG_SYS_SDRAM_BASE + gd->ram_size;
 
+#ifdef CONFIG_AML_SUSPEND
+//init_suspend_firmware() function (used in main.c) will use 0x9ff00000 buffer
+	if(addr > 0x9FF00000)
+		addr = 0x9FF00000;
+#endif
+#ifdef CONFIG_AML_SECURE
+//init_secure_firmware() function (used in main.c) will use 0x9fe00000 buffer
+	if(addr > 0x9FE00000)
+		addr = 0x9FE00000;
+#endif
 #ifdef CONFIG_LOGBUFFER
 #ifndef CONFIG_ALT_LB_ADDR
 	/* reserve kernel log buffer */
@@ -329,15 +394,15 @@ void board_init_f (ulong bootflag)
 	debug ("Reserving %ldk for protected RAM at %08lx\n", reg, addr);
 #endif /* CONFIG_PRAM */
 
-#if !(defined(CONFIG_SYS_NO_ICACHE) && defined(CONFIG_SYS_NO_DCACHE))
+#if !(defined(CONFIG_ICACHE_OFF) && defined(CONFIG_DCACHE_OFF))
 	/* reserve TLB table */
 	addr -= (4096 * 4);
 
 	/* round down to next 64 kB limit */
 	addr &= ~(0x10000 - 1);
 
-	gd->tlb_addr = addr;
-	debug ("TLB table at: %08lx\n", addr);
+//	gd->tlb_addr = addr;
+//	debug ("TLB table at: %08lx\n", addr);
 #endif
 
 	/* round down to next 4 kB limit */
@@ -355,10 +420,11 @@ void board_init_f (ulong bootflag)
 	gd->fb_base = addr;
 #endif /* CONFIG_VFD */
 
-#ifdef CONFIG_LCD
+#if defined(CONFIG_LCD) || defined(CONFIG_VIDEO_AMLLCD)
 	/* reserve memory for LCD display (always full pages) */
 	addr = lcd_setmem (addr);
 	gd->fb_base = addr;
+	debug("fb_base=%x\n", gd->fb_base);
 #endif /* CONFIG_LCD */
 
 	/*
@@ -366,7 +432,11 @@ void board_init_f (ulong bootflag)
 	 * round down to next 4 kB limit
 	 */
 	addr -= gd->mon_len;
-	addr &= ~(4096 - 1);
+	//addr &= ~(4096 - 1);
+	// relocate code include mmu table, mmu table start address need 14bits alignment
+	// so relocate code start code align to 14bits to set correct mmu table start addr
+	//addr &= ~(0x10000 - 1);  // round down to 64kB is ok
+	addr -= ((__mmu_table + addr - _TEXT_BASE)&((1024 * 16 - 1)));
 
 	debug ("Reserving %ldk for U-Boot at: %08lx\n", gd->mon_len >> 10, addr);
 
@@ -423,7 +493,14 @@ void board_init_f (ulong bootflag)
 	gd->relocaddr = addr;
 	gd->start_addr_sp = addr_sp;
 	gd->reloc_off = addr - _TEXT_BASE;
-	debug ("relocation Offset is: %08lx\n", gd->reloc_off);
+
+#if !(defined(CONFIG_ICACHE_OFF) && defined(CONFIG_DCACHE_OFF))
+	/* adjust mmu table address */
+	gd->tlb_addr = __mmu_table + gd->reloc_off;
+  debug ("TLB table at: %08lx\n", gd->tlb_addr);
+#endif
+
+	printf ("relocation Offset is: %08lx\n", gd->reloc_off);
 	memcpy (id, (void *)gd, sizeof (gd_t));
 
 	relocate_code (addr_sp, id, addr);
@@ -450,18 +527,36 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	char *s;
 	bd_t *bd;
 	ulong malloc_start;
+	int init_ret=0, ret = 0;
+#ifdef CONFIG_GENERIC_MMC
+    struct mmc *mmc;
+#endif
 #if !defined(CONFIG_SYS_NO_FLASH)
 	ulong flash_size;
+#endif
+
+
+	//2013.07.16
+	//cache update after relocation
+	dcache_flush();
+	icache_invalid();
+	//end 2013.07.16
+
+#ifdef TEST_UBOOT_BOOT_SPEND_TIME
+	lib_board_init_r_start = get_utimer(0);
+
+	printf("\ntime: from powerup to board_init_r time(us):%d\n",(lib_board_init_r_start));
 #endif
 
 	gd = id;
 	bd = gd->bd;
 
+	gd->env_addr += gd->reloc_off;
+
 	gd->flags |= GD_FLG_RELOC;	/* tell others: relocation done */
 
 	monitor_flash_len = _end_ofs;
 	debug ("monitor flash len: %08lX\n", monitor_flash_len);
-	board_init();	/* Setup chipselects */
 
 #ifdef CONFIG_SERIAL_MULTI
 	serial_initialize();
@@ -479,7 +574,25 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	/* The Malloc area is immediately below the monitor copy in DRAM */
 	malloc_start = dest_addr - TOTAL_MALLOC_LEN;
 	mem_malloc_init (malloc_start, TOTAL_MALLOC_LEN);
+#ifdef CONFIG_ACS
+	get_partition_table();
+#endif
 
+#ifdef CONFIG_GENERIC_MMC
+    puts("MMC:   ");
+    mmc_initialize(bd);
+#endif
+#ifdef CONFIG_AML_I2C
+    aml_i2c_init();
+#endif
+#if defined(CONFIG_AML_V2_USBTOOL)
+	if(is_tpl_loaded_from_usb())//is uboot loaded from usb or bootable sdcard
+	{
+        aml_v2_usb_producing(0, bd);//would NOT return if 1)boot from usb, 2)boot from sdmmc and fatexist(aml_sdc_burn.ini)
+	}
+#endif// #if defined(CONFIG_AML_V2_USBTOOL)
+
+	board_init();	/* Setup chipselects */
 #if !defined(CONFIG_SYS_NO_FLASH)
 	puts ("Flash: ");
 
@@ -507,44 +620,135 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	}
 #endif
 
+#ifdef TEST_UBOOT_BOOT_SPEND_TIME
+unsigned int before_nand_init =  get_utimer(0);
+#endif
+
+	AML_LOG_INIT("board");
+	AML_LOG_TE("board");
+
+#if CONFIG_JERRY_NAND_TEST
+	nand_init();
+#endif
 #if defined(CONFIG_CMD_NAND)
 	puts ("NAND:  ");
-	nand_init();		/* go init the NAND */
+#ifdef  CONFIG_NEXT_NAND
+#ifndef CONFIG_VLSI_EMULATOR
+	ret = amlnf_init(0x0);
+	init_ret = ret;
 #endif
+// flag = 0,indicate normal boot;
+//flag = 1, indicate update;
+//flag = 2, indicate need erase
+#else
+	nand_init();	/* go init the NAND */
+#endif
+#endif
+
+#ifdef TEST_UBOOT_BOOT_SPEND_TIME
+	unsigned int after_nand_init =  get_utimer(0);
+	printf("\ntime: from powerup to nand init finished %d us \n", after_nand_init);
+#endif
+
+	AML_LOG_TE("board");
+
+#ifdef CONFIG_STORE_COMPATIBLE
+	get_storage_device_flag(init_ret);
+#endif
+
+	AML_LOG_TE("board");
 
 #if defined(CONFIG_CMD_ONENAND)
 	onenand_init();
 #endif
 
-#ifdef CONFIG_GENERIC_MMC
-       puts("MMC:   ");
-       mmc_initialize(bd);
+	AML_LOG_TE("board");
+
+#if defined (CONFIG_GENERIC_MMC) && defined(CONFIG_STORE_COMPATIBLE)
+    if((device_boot_flag == SPI_EMMC_FLAG) || (device_boot_flag == EMMC_BOOT_FLAG)) { // if eMMC/tSD is exist
+        mmc = find_mmc_device(1);
+        if (mmc) {
+            mmc_init(mmc); // init eMMC/tSD
+        }
+    }
 #endif
+
+	AML_LOG_TE("board");
+
+#if defined (CONFIG_PARTITIONS_STORE)
+        mmc = find_mmc_device(1);
+        if (mmc) {
+            mmc_init(mmc); // init eMMC/tSD
+        }
+#endif
+
+	AML_LOG_TE("board");
 
 #ifdef CONFIG_HAS_DATAFLASH
 	AT91F_DataflashInit();
 	dataflash_print_info();
 #endif
 
+	AML_LOG_TE("board");
+
 	/* initialize environment */
 	env_relocate ();
+
+	AML_LOG_TE("board");
+
+#ifdef CONFIG_STORE_COMPATIBLE
+	set_storage_device_flag();
+#endif
+
+	AML_LOG_TE("board");
+
+//#ifdef MX_REVD
+#if defined(CONFIG_M6) || defined(CONFIG_M6TV) || defined(CONFIG_M6TVD)
+ 		//if not clear, uboot command reset will fail -> blocked
+ 		*((volatile unsigned long *)0xc8100000) = 0;
+#endif
+
+	AML_LOG_TE("board");
+
+#ifdef CONFIG_DT_PRELOAD
+	if ((s = getenv ("preloaddtb")) != NULL) {
+		run_command(s, 0);
+	}
+#endif
+
+	AML_LOG_TE("board");
+
+#ifdef CONFIG_VPU_PRESET
+	vpu_probe();
+#endif
+
+	AML_LOG_TE("board");
 
 #ifdef CONFIG_VFD
 	/* must do this after the framebuffer is allocated */
 	drv_vfd_init();
 #endif /* CONFIG_VFD */
 
+	AML_LOG_TE("board");
+
 	/* IP Address */
 	gd->bd->bi_ip_addr = getenv_IPaddr ("ipaddr");
 
 	stdio_init ();	/* get the devices list going. */
 
+	AML_LOG_TE("board");
+
 	jumptable_init ();
+
+	AML_LOG_TE("board");
+
 
 #if defined(CONFIG_API)
 	/* Initialize API */
 	api_init ();
 #endif
+
+	AML_LOG_TE("board");
 
 	console_init_r ();	/* fully init console as a device */
 
@@ -556,6 +760,8 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	/* miscellaneous platform dependent initialisations */
 	misc_init_r ();
 #endif
+
+	AML_LOG_TE("board");
 
 	 /* set up exceptions */
 	interrupt_init ();
@@ -572,6 +778,8 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	}
 #endif /* CONFIG_DRIVER_SMC91111 || CONFIG_DRIVER_LAN91C96 */
 
+	AML_LOG_TE("board");
+
 	/* Initialize from environment */
 	if ((s = getenv ("loadaddr")) != NULL) {
 		load_addr = simple_strtoul (s, NULL, 16);
@@ -581,6 +789,8 @@ void board_init_r (gd_t *id, ulong dest_addr)
 		copy_filename (BootFile, s, sizeof (BootFile));
 	}
 #endif
+
+	AML_LOG_TE("board");
 
 #ifdef BOARD_LATE_INIT
 	board_late_init ();
@@ -593,6 +803,9 @@ void board_init_r (gd_t *id, ulong dest_addr)
 #if defined(CONFIG_NET_MULTI)
 	puts ("Net:   ");
 #endif
+
+	AML_LOG_TE("board");
+
 	eth_initialize(gd->bd);
 #if defined(CONFIG_RESET_PHY_R)
 	debug ("Reset Ethernet PHY\n");
@@ -600,9 +813,56 @@ void board_init_r (gd_t *id, ulong dest_addr)
 #endif
 #endif
 
+	AML_LOG_TE("board");
+
+#ifdef CONFIG_CMD_ADC_POWER_KEY
+	puts ("cold power up \n");
+	char *data_sus = getenv("suspend");
+	int sus_ret = strcmp(data_sus,"on");
+	if  (sus_ret == 0)
+		{
+			printf("pls touch key_pad\n");
+			/*add  install_halder_riq for keypad and remote*/
+			//run_command("adc 2",0);
+
+		}
+#endif
+
+	AML_LOG_TE("board");
+
+#ifdef TEST_UBOOT_BOOT_SPEND_TIME
+unsigned int before_lcd_init =  get_utimer(0);
+#endif
+
+#if CONFIG_AUTO_START_SD_BURNING
+    if(is_tpl_loaded_from_ext_sdmmc())
+    {
+    AML_LOG_TE("board");
+        if(aml_check_is_ready_for_sdc_produce())
+        {
+        AML_LOG_TE("board");
+            aml_v2_sdc_producing(0, bd);
+        }
+    }
+#endif// #if CONFIG_AUTO_START_SD_BURNING
+
+	AML_LOG_TE("board");
+
+#ifdef CONFIG_VIDEO_AMLLCD
+	puts("LCD Initialize:   \n");
+	aml_lcd_init();
+#endif
+
+#ifdef TEST_UBOOT_BOOT_SPEND_TIME
+	unsigned int after_lcd_init =  get_utimer(0);
+	printf("\ntime: from powerup to lcd init finished %d us \n", after_lcd_init );
+#endif
+
 #ifdef CONFIG_POST
 	post_run (NULL, POST_RAM | post_bootmode_get(0));
 #endif
+
+	AML_LOG_TE("board");
 
 #if defined(CONFIG_PRAM) || defined(CONFIG_LOGBUFFER)
 	/*
@@ -611,7 +871,9 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	 */
 	{
 		ulong pram;
+#ifndef CONFIG_POST_AML
 		uchar memsz[32];
+#endif
 #ifdef CONFIG_PRAM
 		char *s;
 
@@ -629,10 +891,21 @@ void board_init_r (gd_t *id, ulong dest_addr)
 		pram += (LOGBUFF_LEN+LOGBUFF_OVERHEAD)/1024;
 #endif
 #endif
+#ifndef CONFIG_POST_AML
 		sprintf ((char *)memsz, "%ldk", (bd->bi_memsize / 1024) - pram);
 		setenv ("mem", (char *)memsz);
+#endif
 	}
 #endif
+
+	AML_LOG_TE("board");
+
+#ifdef TEST_UBOOT_BOOT_SPEND_TIME
+	main_loop_start = get_utimer(0);
+	printf("\ntime: from powerup to start main_loop time(us):%d\n\n",main_loop_start);
+#endif
+
+	AML_LOG_TE("board");
 
 	/* main_loop() can return to retry autoboot, if so just run it again. */
 	for (;;) {

@@ -102,7 +102,7 @@ struct stdio_dev* stdio_clone(struct stdio_dev *dev);
 #ifdef CONFIG_ARM_DCC_MULTI
 int drv_arm_dcc_init(void);
 #endif
-#ifdef CONFIG_LCD
+#if defined(CONFIG_LCD) || defined(CONFIG_VIDEO_AMLLCD)
 int	drv_lcd_init (void);
 #endif
 #ifdef CONFIG_VFD

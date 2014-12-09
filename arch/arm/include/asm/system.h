@@ -45,6 +45,82 @@
 #define CR_AFE	(1 << 29)	/* Access flag enable			*/
 #define CR_TE	(1 << 30)	/* Thumb exception enable		*/
 
+
+// Definitions for section descriptors
+//
+// - Standard definitions of mode bits and interrupt (I&F) flags in PSRs
+#define  Mode_USR         0x10
+#define  Mode_FIQ         0x11
+#define  Mode_IRQ         0x12
+#define  Mode_SVC         0x13
+#define  Mode_ABT         0x17
+#define  Mode_UNDEF       0x1B
+#define  Mode_SYS         0x1F
+#define  I_Bit            0x80 // when I bit is set, IRQ is disabled
+#define  F_Bit            0x40 // when F bit is set, FIQ is disabled
+
+
+#define SEC_NG            (1 << 17)
+#define SEC_S             (1 << 16)
+#define SEC_AP2           (1 << 15)
+#define SEC_TEX0          (1 << 12)
+#define SEC_TEX1          (1 << 13)
+#define SEC_TEX2          (1 << 14)
+#define SEC_AP0           (1 << 10)
+#define SEC_AP1           (1 << 11)
+#define SEC_P             (1 << 9)
+#define SEC_XN            (1 << 4)
+#define SEC_C             (1 << 3)
+#define SEC_B             (1 << 2)
+
+#define SECTION           0x02
+#define FAULT		      0
+
+#define  SEC_SO_MEM       (SEC_S | SECTION)
+#define  SEC_S_DEVICE     (SEC_S | SEC_B | SECTION)
+#define  SEC_WT     	  (SEC_C | SECTION)
+#define  SEC_WB		      (SEC_C | SEC_B | SECTION)
+#define  SEC_NC		      (SEC_TEX0 | SECTION)
+#define  SEC_DEVICE 	  (SEC_TEX1 | SECTION)
+#define  SEC_INOUT	      (SEC_TEX2 | SECTION)
+
+#define  SEC_I_NC	      (0)
+#define  SEC_I_WBWA	      (SEC_B)
+#define  SEC_I_WT	      (SEC_C)
+#define  SEC_I_WB	      (SEC_C | SEC_B)
+#define  SEC_O_NC	      (0)
+#define  SEC_O_WBWA	      (SEC_TEX0)
+#define  SEC_O_WT	      (SEC_TEX1)
+#define  SEC_O_WB	      (SEC_TEX1 | SEC_TEX0)
+
+#define SEC_PROT_N	      (0)
+#define SEC_PROT_RW_NA    (SEC_AP0)
+#define SEC_PROT_RW_RO	  (SEC_AP1)
+#define SEC_PROT_RW_RW	  (SEC_AP1 | SEC_AP0)
+#define SEC_PROT_RO_NA	  (SEC_AP2 | SEC_AP0)
+#define SEC_PROT_RO_RO	  (SEC_AP2 | SEC_AP1)
+
+
+
+// Definitions for page descriptors
+
+#define PAGE_NGLOBAL          (1 << 11)
+#define PAGE_SHARED           (1 << 10)
+#define PAGE_APX              (1 << 9)
+#define PAGE_TEX1             (1 << 6)
+#define PAGE_AP1              (1 << 5)
+#define PAGE_AP0              (1 << 4)
+#define PAGE_CACHE            (1 << 3)
+#define PAGE_BUFFER           (1 << 2)
+#define IS_A_PAGE          (1 << 1)
+#define PAGE_XN               (1 << 0)
+
+#define IS_A_PAGETABLE     (1 << 0)
+
+#define PAGE_NORMAL                   (PAGE_TEX1 | PAGE_CACHE | PAGE_BUFFER | IS_A_PAGE | PAGE_AP0 | PAGE_AP1)
+#define PAGE_SHARED_NORMAL            (PAGE_NORMAL | PAGE_SHARED)
+#define PAGE_SHARED_STRONGLY_ORDERED  (PAGE_SHARED | PAGE_AP0 | PAGE_AP1 | IS_A_PAGE)
+
 /*
  * This is used to ensure the compiler did actually allocate the register we
  * asked it for some inline assembly sequences.  Apparently we can't trust

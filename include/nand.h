@@ -25,6 +25,7 @@
 #define _NAND_H_
 
 extern void nand_init(void);
+extern  int nand_test_init(void);
 
 #include <linux/mtd/compat.h>
 #include <linux/mtd/mtd.h>
@@ -35,7 +36,7 @@ extern int board_nand_init(struct nand_chip *nand);
 typedef struct mtd_info nand_info_t;
 
 extern int nand_curr_device;
-extern nand_info_t nand_info[];
+extern nand_info_t *nand_info[];
 
 static inline int nand_read(nand_info_t *info, loff_t ofs, size_t *len, u_char *buf)
 {
@@ -71,8 +72,8 @@ static inline int nand_erase(nand_info_t *info, loff_t off, size_t size)
 
 struct nand_write_options {
 	u_char *buffer;		/* memory block containing image to write */
-	ulong length;		/* number of bytes to write */
-	ulong offset;		/* start address in NAND */
+	loff_t length;		/* number of bytes to write */
+	loff_t offset;		/* start address in NAND */
 	int quiet;		/* don't display progress messages */
 	int autoplace;		/* if true use auto oob layout */
 	int forcejffs2;		/* force jffs2 oob layout */
@@ -89,8 +90,8 @@ typedef struct mtd_oob_ops mtd_oob_ops_t;
 
 struct nand_read_options {
 	u_char *buffer;		/* memory block in which read image is written*/
-	ulong length;		/* number of bytes to read */
-	ulong offset;		/* start address in NAND */
+	loff_t length;		/* number of bytes to read */
+	loff_t offset;		/* start address in NAND */
 	int quiet;		/* don't display progress messages */
 	int readoob;		/* put oob data in image */
 };
@@ -112,11 +113,17 @@ struct nand_erase_options {
 
 typedef struct nand_erase_options nand_erase_options_t;
 
-int nand_read_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
-		       u_char *buffer);
-int nand_write_skip_bad(nand_info_t *nand, loff_t offset, size_t *length,
-			u_char *buffer, int withoob);
+int nand_read_skip_bad(nand_info_t *nand, loff_t offset, loff_t *length,
+		       u_char *buffer, unsigned read_with_oob);
+int nand_write_skip_bad(nand_info_t *nand, loff_t offset, loff_t *length,
+			u_char *buffer, unsigned write_with_oob);
 int nand_erase_opts(nand_info_t *meminfo, const nand_erase_options_t *opts);
+
+int romboot_nand_write(nand_info_t *nand, loff_t offset, size_t *length,
+		       u_char *buffer, int protect_flag);
+int romboot_nand_read(nand_info_t *nand, loff_t offset, size_t *length,
+			u_char *buffer);
+extern void aml_nand_stupid_dectect_badblock(struct mtd_info *mtd);
 
 #define NAND_LOCK_STATUS_TIGHT	0x01
 #define NAND_LOCK_STATUS_LOCK	0x02

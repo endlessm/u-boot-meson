@@ -412,7 +412,7 @@ static int part_validate(struct mtdids *id, struct part_info *part)
 		part->size = id->size - part->offset;
 
 	if (part->offset > id->size) {
-		printf("%s: offset %08x beyond flash size %08x\n",
+		printf("%s: offset %llx beyond flash size %llx\n",
 				id->mtd_id, part->offset, id->size);
 		return 1;
 	}
@@ -710,7 +710,7 @@ static int part_parse(const char *const partdef, const char **ret, struct part_i
  * @param size a pointer to the size of the mtd device (output)
  * @return 0 if device is valid, 1 otherwise
  */
-int mtd_device_validate(u8 type, u8 num, u32 *size)
+int mtd_device_validate(u8 type, u8 num, u64 *size)
 {
 	struct mtd_info *mtd = NULL;
 
@@ -1084,8 +1084,8 @@ static int generate_mtdparts(char *buf, u32 buflen)
 	struct part_info *part, *prev_part;
 	char *p = buf;
 	char tmpbuf[32];
-	u32 size, offset, len, part_cnt;
-	u32 maxlen = buflen - 1;
+	u64 size, offset, len, part_cnt;
+	u64 maxlen = buflen - 1;
 
 	debug("--- generate_mtdparts ---\n");
 
@@ -1283,14 +1283,14 @@ static void print_partition_table(void)
 
 		list_for_each(pentry, &dev->parts) {
 			part = list_entry(pentry, struct part_info, link);
-			printf("%2d: %-20s0x%08x\t0x%08x\t%d\n",
+			printf("%2d: %-20s0x%llx\t0x%llx\t%d\n",
 					part_num, part->name, part->size,
 					part->offset, part->mask_flags);
 #endif /* defined(CONFIG_CMD_MTDPARTS_SHOW_NET_SIZES) */
 			part_num++;
 		}
 	}
-
+			
 	if (list_empty(&devices))
 		printf("no partitions defined\n");
 }
@@ -1310,7 +1310,7 @@ static void list_partitions(void)
 	if (current_mtd_dev) {
 		part = mtd_part_info(current_mtd_dev, current_mtd_partnum);
 		if (part) {
-			printf("\nactive partition: %s%d,%d - (%s) 0x%08x @ 0x%08x\n",
+			printf("\nactive partition: %s%d,%d - (%s) 0x%llx @ 0x%llx\n",			
 					MTD_DEV_TYPE(current_mtd_dev->id->type),
 					current_mtd_dev->id->num, current_mtd_partnum,
 					part->name, part->size, part->offset);
@@ -1596,7 +1596,7 @@ static int parse_mtdids(const char *const ids)
 	struct list_head *entry, *n;
 	struct mtdids *id_tmp;
 	u8 type, num;
-	u32 size;
+	u64 size;
 	int ret = 1;
 
 	debug("\n---parse_mtdids---\nmtdids = %s\n\n", ids);

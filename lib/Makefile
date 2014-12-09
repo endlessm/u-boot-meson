@@ -52,12 +52,16 @@ COBJS-y += string.o
 COBJS-y	+= strmhz.o
 COBJS-y += time.o
 COBJS-y += vsprintf.o
-COBJS-$(CONFIG_ZLIB) += zlib.o
+#COBJS-$(CONFIG_ZLIB) += zlib.o
 COBJS-$(CONFIG_RBTREE)	+= rbtree.o
 
 COBJS	:= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)
 OBJS	:= $(addprefix $(obj),$(COBJS))
+
+ifdef CONFIG_M6
+OBJS += libmx.o
+endif
 
 $(LIB):	$(obj).depend $(OBJS)
 	$(call cmd_link_o_target, $(OBJS))

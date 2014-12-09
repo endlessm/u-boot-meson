@@ -63,7 +63,12 @@ DECLARE_GLOBAL_DATA_PTR;
     !defined(CONFIG_ENV_IS_IN_NVRAM)	&& \
     !defined(CONFIG_ENV_IS_IN_ONENAND)	&& \
     !defined(CONFIG_ENV_IS_IN_SPI_FLASH)	&& \
-    !defined(CONFIG_ENV_IS_NOWHERE)
+    !defined(CONFIG_ENV_IS_IN_AML_NAND)  && \
+    !defined(CONFIG_ENV_IS_IN_EMMC)	&& \
+    !defined(CONFIG_ENV_IS_NOWHERE)    && \
+    !defined(CONFIG_SPI_NAND_COMPATIBLE) && \
+	!defined(CONFIG_SPI_NAND_EMMC_COMPATIBLE) &&\
+	!defined(CONFIG_STORE_COMPATIBLE)
 # error Define one of CONFIG_ENV_IS_IN_{EEPROM|FLASH|DATAFLASH|ONENAND|\
 SPI_FLASH|MG_DISK|NVRAM|MMC|NOWHERE}
 #endif
@@ -152,7 +157,7 @@ int do_env_print (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	for (i = 1; i < argc; ++i) {
 		int rc = env_print(argv[i]);
 		if (!rc) {
-			printf("## Error: \"%s\" not defined\n", argv[i]);
+			//printf("## Error: \"%s\" not defined\n", argv[i]);
 			++rcode;
 		}
 	}
@@ -167,6 +172,7 @@ int do_env_print (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 int _do_env_set (int flag, int argc, char * const argv[])
 {
+    
 	bd_t  *bd = gd->bd;
 	int   i, len;
 	int   console = -1;
@@ -831,7 +837,7 @@ static cmd_tbl_t cmd_env_sub[] = {
 #if defined(CONFIG_CMD_SAVEENV) && !defined(CONFIG_ENV_IS_NOWHERE)
 	U_BOOT_CMD_MKENT(save, 1, 0, do_env_save, "", ""),
 #endif
-	U_BOOT_CMD_MKENT(set, CONFIG_SYS_MAXARGS, 0, do_env_set, "", ""),
+	U_BOOT_CMD_MKENT(set, (CONFIG_SYS_MAXARGS * 2), 0, do_env_set, "", ""),
 };
 
 #if defined(CONFIG_NEEDS_MANUAL_RELOC)
@@ -904,7 +910,7 @@ U_BOOT_CMD_COMPLETE(
 );
 
 U_BOOT_CMD_COMPLETE(
-	setenv, CONFIG_SYS_MAXARGS, 0,	do_env_set,
+	setenv, (CONFIG_SYS_MAXARGS * 2), 0,	do_env_set,
 	"set environment variables",
 	"name value ...\n"
 	"    - set environment variable 'name' to 'value ...'\n"
@@ -939,3 +945,280 @@ U_BOOT_CMD_COMPLETE(
 	var_complete
 );
 #endif
+
+
+int do_loadenv (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	void    *addr;
+
+	if (argc < 2) {
+		cmd_usage(cmdtp);
+		return 1;
+	}
+
+	addr = (void    *)simple_strtoul(argv[1], NULL, 16);
+	printf("gd->env_addr=0x%08x;	addr=0x%08x;	ENV_SIZE=0x%08x\n", (unsigned int)(gd->env_addr), (unsigned int)addr, ENV_SIZE);
+	memcpy((void*)(gd->env_addr), addr, ENV_SIZE);
+	env_crc_update();
+	return 0;
+}
+
+// add
+char * args[]=
+{
+"480poutputx",
+"480poutputx",
+"480poutputy",
+"480poutputwidth",
+"480poutputheight",
+"480ioutputx",
+"480ioutputy",
+"480ioutputwidth",
+"480ioutputheight",
+"576poutputx",
+"576poutputy",
+"576poutputwidth",
+"576poutputheight",
+"576ioutputx",
+"576ioutputy",
+"576ioutputwidth",
+"576ioutputheight",
+"720poutputx",
+"720poutputy",
+"720poutputwidth",
+"720poutputheight",
+"1080poutputx",
+"1080poutputy",
+"1080poutputwidth",
+"1080poutputheight",
+"1080ioutputx",
+"1080ioutputy",
+"1080ioutputwidth",
+"1080ioutputheight",
+"4k2k24hz_x",
+"4k2k24hz_y",
+"4k2k24hz_width",
+"4k2k24hz_height",
+"4k2k25hz_x",
+"4k2k25hz_y",
+"4k2k25hz_width",
+"4k2k25hz_height",
+"4k2k30hz_x",
+"4k2k30hz_y",
+"4k2k30hz_width",
+"4k2k30hz_height",
+"4k2ksmpte_x",
+"4k2ksmpte_y",
+"4k2ksmpte_width",
+"4k2ksmpte_height",
+"digitaudiooutput",
+"defaulttvfrequency",
+"has.accelerometer",
+"cecconfig",
+"cvbsmode",
+"hdmimode",
+"outputmode",
+"disp.fromleft"
+};
+
+void set_env_without_def() 
+{ 
+
+	int size_args = sizeof(args)/sizeof(char*);
+
+	do_defenv_without (0,0,size_args,args);
+}
+
+
+int do_defenv (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{	
+	set_env_without_def();
+#ifdef  CONFIG_STORE_COMPATIBLE
+	run_command("put  store",0);
+#endif
+	return 0;
+}
+
+U_BOOT_CMD(
+	loadenv, CONFIG_SYS_MAXARGS, 1,	do_loadenv,
+	"load environment at address 'addr'",
+	"addr [arg ...]\n    - load environment at address 'addr'\n"
+	"      passing 'arg' as arguments"
+);
+
+U_BOOT_CMD(
+	defenv, CONFIG_SYS_MAXARGS, 1,	do_defenv,
+	"default environment",
+	"\n    - set u-boot default environment\n"
+);
+
+
+
+/***********************************
+*
+*   add by wch for defenv_without
+*
+***********************************/
+int	do_defenv_without (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+
+	char *init_val=NULL;
+	int i,envCnt=0;
+	
+	#define	CONFIG_ENV_NUMBER	80					//effective environment variable number of max
+	char *varName[CONFIG_ENV_NUMBER];
+	char  varValue[CONFIG_ENV_NUMBER][CONFIG_SYS_CBSIZE];
+
+
+	if (argc < 2)
+		return cmd_usage(cmdtp);
+
+	
+	for(i=1;i<argc;i++)
+	{
+		init_val = getenv(argv[i]);				//get environment variable value
+		if(init_val)
+		{
+			varName[envCnt]  = argv[i];
+			strcpy(varValue[envCnt], init_val);			
+			envCnt ++;
+			
+			printf("%s = %s\n",varName[envCnt-1],varValue[envCnt-1]);
+		}
+		//else
+		//	printf("## Error: \"%s\" not defined\n",argv[i]);
+	}
+	
+	set_default_env(NULL);						//defenv
+
+	if(envCnt>0)
+	{
+		for(i=0;i<envCnt;i++)
+			setenv((char *)varName[i],(char *)varValue[i]);  //set specified environment variables
+	}
+		
+	return 0;
+}
+
+U_BOOT_CMD(
+	defenv_without, CONFIG_SYS_MAXARGS, 1,	do_defenv_without,
+	"defenv without environment variables",
+	"name ...\n"
+	"    - defenv without specified u-boot environment variables\n"
+);
+
+#ifdef  CONFIG_STORE_COMPATIBLE
+
+void replace(char* org, char* find, char* rep)
+{	
+	char *p1, *p2;		
+	while(p1 = strstr(org, find)){		
+	p2 = p1 + strlen(find);		
+	memmove(p1 + strlen(rep), p2, strlen(p2) + 1);		
+	memcpy(p1, rep, strlen(rep));	
+	}
+	
+	return;
+}
+
+
+int put_storage(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	char *cmd, *s, *args;
+	char rep[20];
+	unsigned char store=0,tmp = 0;
+	char *p1 = NULL, *p2;
+	
+	if (argc < 2)
+		return cmd_usage(cmdtp);
+	
+	cmd = argv[1];	
+
+	if(!strcmp(cmd,"storage")){
+        char env_bootargs[512];
+		s = getenv("store");
+		store = simple_strtoul(s,NULL,16);
+		//memset(env_bootargs, 0, 128);
+		args =  getenv("initargs");
+        if(args){
+		if(!strstr(args, "storage")){ // no storage in bootargs
+			//printf("####set bootargs of the storage value\n");
+
+			sprintf(env_bootargs, "%s storage=%d", getenv("initargs"), store);
+			setenv("initargs", env_bootargs);
+			saveenv();
+
+			//printf("####put_storage : bootargs %s\n",getenv("bootargs"));
+		}else{ // check storage value in bootargs
+
+		//	printf("@put_storage : set bootargs of the storage value\n");
+			p1 = strstr(args, "storage");
+			if(p1 == NULL){
+				printf("@put_storage: no storage in initargs: failed\n");
+				return -1;
+			}
+			p2 = p1+strlen("storage")+1;
+			
+			tmp = simple_strtoul(p2 ,NULL,16);
+		//	printf("@put_storage: tmp %d store %d\n",tmp,store);
+			if(tmp!= store){
+				sprintf(rep,"storage=%d",store);
+				memcpy(p1, rep, strlen(rep));
+				saveenv();
+			//	printf("@put_storage : bootargs %s\n",getenv("bootargs"));
+			}else{
+				printf("@put_storage : initargs %s\n",getenv("initargs"));
+			}
+		}
+	   }
+       else{
+        printf("no initargs,put storage to bootargs\n");
+        args =  getenv("bootargs");
+		if(!strstr(args, "storage")){ // no storage in bootargs
+		//printf("####set bootargs of the storage value\n");
+
+		sprintf(env_bootargs, "%s storage=%d", getenv("bootargs"), store);
+		setenv("bootargs", env_bootargs);
+		saveenv();
+
+			//printf("####put_storage : bootargs %s\n",getenv("bootargs"));
+		}else{ // check storage value in bootargs
+
+		//	printf("@put_storage : set bootargs of the storage value\n");
+			p1 = strstr(args, "storage");
+			if(p1 == NULL){
+				printf("@put_storage: no storage in bootargs: failed\n");
+				return -1;
+			}
+			p2 = p1+strlen("storage")+1;
+			
+			tmp = simple_strtoul(p2 ,NULL,16);
+		//	printf("@put_storage: tmp %d store %d\n",tmp,store);
+			if(tmp!= store){
+				sprintf(rep,"storage=%d",store);
+				memcpy(p1, rep, strlen(rep));
+				saveenv();
+			//	printf("@put_storage : bootargs %s\n",getenv("bootargs"));
+			}else{
+				printf("@put_storage : bootargs %s\n",getenv("bootargs"));
+			}
+		}
+       }
+	}else if(!strcmp(cmd,"store")){
+		set_storage_device_flag();
+	}else{
+		return cmd_usage(cmdtp);
+	}
+	
+	return 0;
+}
+
+
+U_BOOT_CMD(
+	put, CONFIG_SYS_MAXARGS, 1,	put_storage,
+	"put  storage ",
+	"set storage with the value store,and set storage to bootargs"
+);
+
+#endif
+

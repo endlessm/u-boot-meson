@@ -47,6 +47,19 @@ int do_go (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	printf ("## Starting application at 0x%08lX ...\n", addr);
 
+#ifdef CONFIG_AML_SECU_BOOT_V2
+#ifdef CONFIG_MESON_TRUSTZONE
+	extern int meson_trustzone_boot_check(unsigned char *addr);
+	rcode = meson_trustzone_boot_check((unsigned char *)addr);
+#else
+	extern int aml_sec_boot_check(unsigned char *pSRC);
+	rcode = aml_sec_boot_check((unsigned char *)addr);
+#endif
+	if(rcode)
+		return rcode; 
+#endif //CONFIG_AML_SECU_BOOT_V2
+
+
 	/*
 	 * pass address parameter as argv[0] (aka command name),
 	 * and all remaining args

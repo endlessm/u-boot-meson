@@ -18,18 +18,31 @@ board=""
 vendor=""
 soc=""
 options=""
-
 if [ \( $# -eq 2 \) -a \( "$1" = "-A" \) ] ; then
 	# Automatic mode
-	line=`egrep -i "^[[:space:]]*${2}[[:space:]]" boards.cfg` || {
+
+	line=`cat boards.cfg board/amlogic/boards.cfg customer/board/boards.cfg | egrep -i "^[[:space:]]*${2}[[:space:]]"  ` ||  {
 		echo "make: *** No rule to make target \`$2_config'.  Stop." >&2
 		exit 1
 	}
 
+	echo $line
 	set ${line}
 	# add default board name if needed
 	[ $# = 3 ] && set ${line} ${1}
 fi
+
+#if [ \( $# -eq 3 \) -a \( "$1" = "-f" \) ] ; then
+#	# Automatic mode
+#	line=`egrep -i "^[[:space:]]*${3}[[:space:]]" $2 ` || {
+#		echo "make: *** No rule to make target \`$3_config'.  Stop." >&2
+#		exit 1
+#	}
+#
+#	set ${line}
+#	# add default board name if needed
+#	[ $# = 3 ] && set ${line} ${1}
+#fi
 
 while [ $# -gt 0 ] ; do
 	case "$1" in
@@ -46,7 +59,6 @@ done
 
 # Strip all options and/or _config suffixes
 CONFIG_NAME="${1%_config}"
-
 [ "${BOARD_NAME}" ] || BOARD_NAME="${1%_config}"
 
 arch="$2"
@@ -90,6 +102,17 @@ fi
 #
 # Create link to architecture specific headers
 #
+
+if [ ! -L ${SRCTREE}/include/configs/customer ]; then	
+	cd ${SRCTREE}/include/configs
+	ln -s ../../customer/board/configs customer -f
+fi 
+
+if [ ! -L ${SRCTREE}/include/configs/amlogic ]; then	
+	cd ${SRCTREE}/include/configs
+	ln -s ../../board/amlogic/configs amlogic
+fi
+
 if [ "$SRCTREE" != "$OBJTREE" ] ; then
 	mkdir -p ${OBJTREE}/include
 	mkdir -p ${OBJTREE}/include2
@@ -117,7 +140,7 @@ if [ "${arch}" = "arm" ] ; then
 	rm -f asm/proc
 	ln -s ${LNPREFIX}proc-armv asm/proc
 fi
-
+ 
 #
 # Create include file for Make
 #
@@ -146,8 +169,11 @@ else
 	> config.h		# Create new config file
 fi
 echo "/* Automatically generated - do not edit */" >>config.h
+tmp_board="`echo ${board} | sed 's/[^A-Za-z0-9]\{1,\}/_/g'`"
+#declare -u tmp_targets
+tmp_targets=`echo ${cpu} ${soc} ${tmp_board} | tr a-z A-Z`
 
-for i in ${TARGETS} ; do
+for i in ${TARGETS} ${tmp_targets}; do
 	i="`echo ${i} | sed '/=/ {s/=/\t/;q } ; { s/$/\t1/ }'`"
 	echo "#define CONFIG_${i}" >>config.h ;
 done
@@ -158,6 +184,8 @@ cat << EOF >> config.h
 #include <config_defaults.h>
 #include <configs/${CONFIG_NAME}.h>
 #include <asm/config.h>
+#include <asm/mach-types.h>
+#define CONFIG_SYS_PROMPT "${1%_config}#"
 EOF
 
 exit 0

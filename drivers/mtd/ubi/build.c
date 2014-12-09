@@ -71,7 +71,7 @@ static int mtd_devs = 0;
 static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
 
 /* Root UBI "class" object (corresponds to '/<sysfs>/class/ubi/') */
-struct class *ubi_class;
+struct class *ubi_class=0;
 
 #ifdef UBI_LINUX
 /* Slab cache for wear-leveling entries */
@@ -86,7 +86,7 @@ static struct miscdevice ubi_ctrl_cdev = {
 #endif
 
 /* All UBI devices in system */
-struct ubi_device *ubi_devices[UBI_MAX_DEVICES];
+struct ubi_device *ubi_devices[UBI_MAX_DEVICES]={0};
 
 #ifdef UBI_LINUX
 /* Serializes UBI devices creations and removals */

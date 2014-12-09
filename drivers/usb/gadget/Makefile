@@ -29,6 +29,7 @@ LIB	:= $(obj)libusb_gadget.o
 ifdef CONFIG_USB_ETHER
 COBJS-y += ether.o epautoconf.o config.o usbstring.o
 COBJS-$(CONFIG_USB_ETH_RNDIS) += rndis.o
+COBJS-$(CONFIG_USB_GADGET_S3C_UDC_OTG) += s3c_udc_otg.o
 else
 # Devices not related to the new gadget layer depend on CONFIG_USB_DEVICE
 ifdef CONFIG_USB_DEVICE
@@ -39,8 +40,13 @@ COBJS-$(CONFIG_OMAP1610) += omap1510_udc.o
 COBJS-$(CONFIG_MPC885_FAMILY) += mpc8xx_udc.o
 COBJS-$(CONFIG_PXA27X) += pxa27x_udc.o
 COBJS-$(CONFIG_SPEARUDC) += spr_udc.o
+
 endif
 endif
+
+COBJS-$(CONFIG_AML_TINY_USBTOOL) += aml_tiny_usbtool/aml_tiny_usbtool.o \
+									aml_tiny_usbtool/burn_func.o
+
 
 COBJS	:= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)

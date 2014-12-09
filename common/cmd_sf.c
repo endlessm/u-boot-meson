@@ -17,7 +17,7 @@
 # define CONFIG_SF_DEFAULT_MODE		SPI_MODE_3
 #endif
 
-static struct spi_flash *flash;
+static struct spi_flash *flash=NULL;
 
 static int do_spi_flash_probe(int argc, char * const argv[])
 {
@@ -55,14 +55,14 @@ static int do_spi_flash_probe(int argc, char * const argv[])
 			goto usage;
 	}
 
+	if (flash)
+		spi_flash_free(flash);
+
 	new = spi_flash_probe(bus, cs, speed, mode);
 	if (!new) {
 		printf("Failed to initialize SPI flash at %u:%u\n", bus, cs);
 		return 1;
 	}
-
-	if (flash)
-		spi_flash_free(flash);
 	flash = new;
 
 	printf("%u KiB %s at %u:%u is now current device\n",
@@ -102,12 +102,17 @@ static int do_spi_flash_read_write(int argc, char * const argv[])
 		puts("Failed to map physical memory\n");
 		return 1;
 	}
+	
+	unsigned int nStart = readl(0xc1109954);
+	unsigned int nReadFlag = 1;
 
 	if (strcmp(argv[0], "read") == 0)
 		ret = spi_flash_read(flash, offset, len, buf);
 	else
-		ret = spi_flash_write(flash, offset, len, buf);
+        {	ret = spi_flash_write(flash, offset, len, buf); nReadFlag = 0;}
 
+	unsigned int nEnd = readl(0xc1109954);
+	printf("Amlogic log : SPI %s %d bytes data used about %d us\n",(nReadFlag ? "read" : "write") ,len,nEnd-nStart);
 	unmap_physmem(buf, len);
 
 	if (ret) {
@@ -139,6 +144,7 @@ static int do_spi_flash_erase(int argc, char * const argv[])
 	if (*argv[2] == 0 || *endp != 0)
 		goto usage;
 
+        printf("[SF]erase 0x%xB at offset 0x%x\n", len, offset);
 	ret = spi_flash_erase(flash, offset, len);
 	if (ret) {
 		printf("SPI flash %s failed\n", argv[0]);
@@ -175,6 +181,13 @@ static int do_spi_flash(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 		return do_spi_flash_read_write(argc - 1, argv + 1);
 	if (strcmp(cmd, "erase") == 0)
 		return do_spi_flash_erase(argc - 1, argv + 1);
+#ifdef CONFIG_SPI_NOR_SECURE_STORAGE
+	if (strcmp(cmd, "secureskey") == 0){
+		void secure_storage_spi_enable(void);
+		secure_storage_spi_enable();
+		return 0;
+	}
+#endif
 
 usage:
 	return cmd_usage(cmdtp);

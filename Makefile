@@ -91,7 +91,7 @@ ifeq ("$(origin O)", "command line")
 BUILD_DIR := $(O)
 endif
 endif
-
+BUILD_DIR ?=$(CURDIR)/build
 ifneq ($(BUILD_DIR),)
 saved-output := $(BUILD_DIR)
 
@@ -183,6 +183,9 @@ OBJS := $(addprefix $(obj),$(OBJS))
 LIBS  = lib/libgeneric.o
 LIBS += lib/lzma/liblzma.o
 LIBS += lib/lzo/liblzo.o
+LIBS += lib/zlib/libz.o
+LIBS += lib/ucl/libucl.o
+LIBS += lib/rand/librandom.o
 LIBS += $(shell if [ -f board/$(VENDOR)/common/Makefile ]; then echo \
 	"board/$(VENDOR)/common/lib$(VENDOR).o"; fi)
 LIBS += $(CPUDIR)/lib$(CPU).o
@@ -208,8 +211,23 @@ LIBS += drivers/i2c/libi2c.o
 LIBS += drivers/input/libinput.o
 LIBS += drivers/misc/libmisc.o
 LIBS += drivers/mmc/libmmc.o
+
+
+ifneq ($(CONFIG_NEXT_NAND),y)
+
 LIBS += drivers/mtd/libmtd.o
 LIBS += drivers/mtd/nand/libnand.o
+ifeq ($(CONFIG_JERRY_NAND_TEST),y)
+LIBS += drivers/mtd/aml_nand/libamlnand.o
+endif
+
+endif
+
+ifeq ($(CONFIG_NEXT_NAND),y)
+LIBS += drivers/amlnf/phy/libamlnf_phy.o
+LIBS += drivers/amlnf/logic/libamlnf_logic.o
+LIBS += drivers/amlnf/dev/libamlnf_dev.o
+endif
 LIBS += drivers/mtd/onenand/libonenand.o
 LIBS += drivers/mtd/ubi/libubi.o
 LIBS += drivers/mtd/spi/libspi_flash.o
@@ -218,6 +236,7 @@ LIBS += drivers/net/phy/libphy.o
 LIBS += drivers/pci/libpci.o
 LIBS += drivers/pcmcia/libpcmcia.o
 LIBS += drivers/power/libpower.o
+LIBS += drivers/pmu/libpmu.o
 LIBS += drivers/spi/libspi.o
 ifeq ($(CPU),mpc83xx)
 LIBS += drivers/qe/libqe.o
@@ -242,7 +261,25 @@ LIBS += drivers/usb/musb/libusb_musb.o
 LIBS += drivers/usb/phy/libusb_phy.o
 LIBS += drivers/video/libvideo.o
 LIBS += drivers/watchdog/libwatchdog.o
+LIBS += drivers/efuse/libefuse.o
+ifdef CONFIG_SARADC
+LIBS += drivers/adc/libadc.o
+endif
+LIBS += drivers/securitkey/libsecuritykey.o
+LIBS += drivers/securestorage/libsecurestoragekey.o
+LIBS += drivers/keymanage/libkeymanage.o
+
+ifdef CONFIG_AML_V2_USBTOOL
+LIBS += drivers/usb/gadget/v2_burning/v2_burning.o
+endif
+
 LIBS += common/libcommon.o
+LIBS += drivers/secure/lib_secure.o
+ifdef CONFIG_SUPPORT_CUSOTMER_BOARD
+LIBS += customer/common/lib_customer_cmd.o
+LIBS += customer/drivers/lib_customer_drivers.o
+endif
+
 LIBS += lib/libfdt/libfdt.o
 LIBS += api/libapi.o
 LIBS += post/libpost.o
@@ -264,8 +301,34 @@ endif
 LIBS := $(addprefix $(obj),$(sort $(LIBS)))
 .PHONY : $(LIBS) $(TIMESTAMP_FILE) $(VERSION_FILE)
 
+ifdef CONFIG_SUPPORT_CUSOTMER_BOARD
+AML_BOARD_PATH = ./customer/board/$(BOARD)/
+LIBBOARD = customer/board/$(BOARD)/lib$(BOARD).o
+ifdef CONFIG_AML_CRYPTO_UBOOT
+BOOT_KEY_PATH = ./customer/board/$(BOARD)
+endif #CONFIG_AML_CRYPTO_UBOOT
+else  #CONFIG_SUPPORT_CUSOTMER_BOARD
+AML_BOARD_PATH = ./board/$(BOARDDIR)/
 LIBBOARD = board/$(BOARDDIR)/lib$(BOARD).o
+ifdef CONFIG_AML_CRYPTO_UBOOT
+BOOT_KEY_PATH = ./board/$(BOARDDIR)
+endif #CONFIG_AML_CRYPTO_UBOOT
+endif #CONFIG_SUPPORT_CUSOTMER_BOARD
+
+ifdef CONFIG_AML_CRYPTO_UBOOT
+ifdef CONFIG_AML_RSA_2048
+RSA_KEY_EXT = k2a
+RSA_KEY_EXT_E = k2e
+else #CONFIG_AML_RSA_2048
+RSA_KEY_EXT = k1a
+RSA_KEY_EXT_E = k1e
+endif #CONFIG_AML_RSA_2048
+endif #CONFIG_AML_CRYPTO_UBOOT
+
 LIBBOARD := $(addprefix $(obj),$(LIBBOARD))
+
+UCL_BOOTLIBS += arch/$(ARCH)/cpu/$(CPU)/uclboot/ucl_lib_$(CPU).o
+UCL_BOOTLIBS := $(addprefix $(obj),$(UCL_BOOTLIBS))
 
 # Add GCC lib
 ifdef USE_PRIVATE_LIBGCC
@@ -278,7 +341,7 @@ else
 PLATFORM_LIBGCC = -L $(shell dirname `$(CC) $(CFLAGS) -print-libgcc-file-name`) -lgcc
 endif
 PLATFORM_LIBS += $(PLATFORM_LIBGCC)
-export PLATFORM_LIBS
+export PLATFORM_LIBS PLATFORM_LIBGCC
 
 # Special flags for CPP when processing the linker script.
 # Pass the version down so we can handle backwards compatibility
@@ -301,7 +364,7 @@ endif
 
 __OBJS := $(subst $(obj),,$(OBJS))
 __LIBS := $(subst $(obj),,$(LIBS)) $(subst $(obj),,$(LIBBOARD))
-
+__UCLBOOTLIBS := $(subst $(obj),,$(UCL_BOOTLIBS))
 #########################################################################
 #########################################################################
 
@@ -321,19 +384,242 @@ BOARD_SIZE_CHECK =
 endif
 
 # Always append ALL so that arch config.mk's can add custom ones
-ALL += $(obj)u-boot.srec $(obj)u-boot.bin $(obj)System.map $(U_BOOT_NAND) $(U_BOOT_ONENAND)
+ifneq ($(CONFIG_AML_MESON),y)
+ALL += $(obj)u-boot.srec
+else
+ALL += $(obj)u-boot-orig.bin
+ALL += $(obj)firmware.bin
+endif
+ALL += $(obj)u-boot.bin $(obj)System.map $(U_BOOT_NAND) $(U_BOOT_ONENAND)
+ifeq  ($(CONFIG_SELF_COMPRESS),y)
+ALL += $(obj)u-boot-comp.bin
+endif
+ifeq ($(CONFIG_VLSI_EMULATOR),y)
+ALL += $(obj)u-boot.hex
+endif
+
+ifeq ($(CONFIG_JOIN_UBOOT_SECUREOS),y)
+SECURE_OS_BIN ?= secure_os/otzone-ucl.bin
+UBOOT_SECURE_OS := $(obj)uboot-secureos.bin
+ALL += $(UBOOT_SECURE_OS)
+endif
+
+AML_USB_UBOOT_NAME = u-boot-usb.bin
 
 all:		$(ALL)
 
-$(obj)u-boot.hex:	$(obj)u-boot
-		$(OBJCOPY) ${OBJCFLAGS} -O ihex $< $@
+ifeq ($(CONFIG_VLSI_EMULATOR),y)
+$(obj)u-boot.hex:	$(obj)u-boot.bin
+		xxd -p -c1 $< > $@
+		$(OBJDUMP) -D -x build/firmware.out > firmware.asm
+endif
+
+
+#$(obj)u-boot.hex:	$(obj)u-boot
+#		$(OBJCOPY) ${OBJCFLAGS} -O ihex $< $@
+#		cp -rf $@ ../../../project_m4/software/out
 
 $(obj)u-boot.srec:	$(obj)u-boot
 		$(OBJCOPY) -O srec $< $@
 
+
+ifneq ($(CONFIG_AML_MESON),y)
 $(obj)u-boot.bin:	$(obj)u-boot
 		$(OBJCOPY) ${OBJCFLAGS} -O binary $< $@
 		$(BOARD_SIZE_CHECK)
+else   #ELSE CONFIG_AML_MESON
+
+ifeq ($(CONFIG_JOIN_UBOOT_SECUREOS),y)
+$(UBOOT_SECURE_OS): $(obj)u-boot.bin $(SECURE_OS_BIN)
+		@$(obj)tools/join_uboot_secureos $(obj)u-boot.bin  $(SECURE_OS_BIN) $(UBOOT_SECURE_OS)
+ifdef CONFIG_AML_SECU_BOOT_V2
+	@./tools/secu_boot/encrypto3 $@
+ifdef CONFIG_AML_CRYPTO_UBOOT
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(BOOT_KEY_PATH)/aml-rsa-key.$(RSA_KEY_EXT) \
+	$@.aml $@.aml.encrypt $@.aml.efuse $(BOOT_KEY_PATH)/aml-aes-key.aes
+ifdef CONFIG_AML_SECU_BOOT_V2_2RSA
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(BOOT_KEY_PATH)/aml-rsa-key-2x.$(RSA_KEY_EXT) \
+	$@.aml.encrypt $@.aml.encrypt.2x $@.aml.encrypt.2x.efuse $(BOOT_KEY_PATH)/aml-aes-key-2x.aes
+	@rm -f $@.aml.encrypt
+endif	
+endif
+endif
+ifdef CONFIG_M6_SECU_BOOT
+ifdef CONFIG_M6_SECU_AUTH_KEY
+	@./tools/secu_boot/encrypto2 $@ ./tools/secu_boot/keys/rsa_key_comm_pub.dat
+else
+	@./tools/secu_boot/encrypto2 $@
+endif
+
+ifdef CONFIG_AML_CRYPTO_UBOOT
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(BOOT_KEY_PATH)/aml-rsa-key.$(RSA_KEY_EXT) \
+	$@.aml $@.aml.encrypt $@.aml.efuse
+endif
+
+endif
+endif  #END CONFIG_JOIN_UBOOT_SECUREOS
+
+#################
+ifneq ($(CONFIG_SELF_COMPRESS),y)
+$(obj)u-boot.bin:	$(obj)u-boot-orig.bin  $(obj)firmware.bin
+	$(obj)tools/convert --soc $(SOC)  -s $(obj)firmware.bin -i $< -o $@
+$(obj)u-boot-orig.bin:	$(obj)u-boot
+	$(OBJCOPY) ${OBJCFLAGS} -O binary $< $@
+	$(BOARD_SIZE_CHECK)
+else
+###################
+ifneq ($(CONFIG_UCL),y)
+$(obj)u-boot-comp.bin:$(obj)u-boot-orig.bin
+	$(obj)/pack -comp $(CONFIG_COMPRESS_METHOD) -o $@ $<
+
+
+else	 # start aml compress
+##################################################
+$(obj)u-boot-comp.bin:$(obj)u-boot-orig.bin
+	$(obj)tools/uclpack $< $@
+endif   # end CONFIG_UCL
+
+$(obj)u-boot-orig.bin:	$(obj)u-boot
+	$(OBJCOPY) ${OBJCFLAGS} -O binary $< $@
+	$(BOARD_SIZE_CHECK)
+
+ifneq ($(CONFIG_IMPROVE_UCL_DEC),y)
+ifneq ($(CONFIG_VLSI_EMULATOR),y)
+$(obj)u-boot.bin:	$(obj)u-boot-comp.bin $(obj)firmware.bin
+else
+$(obj)u-boot.bin:	$(obj)u-boot-orig.bin $(obj)firmware.bin
+endif
+ifndef CONFIG_M6_SECU_BOOT
+	$(obj)tools/convert --soc $(SOC)  -s $(obj)firmware.bin -i $< -o $@
+
+ifdef CONFIG_AML_EXT_PGM
+	@$(obj)tools/uclpack $(AML_BOARD_PATH)code_raw.bin $(obj)code_raw_ucl.bin 
+	@$(obj)tools/convert --soc $(SOC)  -s $(obj)ft_firmware.bin -i $(obj)code_raw_ucl.bin -o $(obj)ft-u-boot.bin
+	@rm -fr $(obj)code_raw_ucl.bin
+endif
+
+ifdef CONFIG_AML_SECU_BOOT_V2
+	@$(obj)tools/convert --soc $(SOC)  -s $(obj)usb_firmware.bin -i $(obj)u-boot-comp.bin -o $(obj)$(AML_USB_UBOOT_NAME).temp
+	@./tools/secu_boot/encrypto3 $@ $@.aml $(AML_BOARD_PATH)aml-rsa-key.$(RSA_KEY_EXT_E)
+	@rm -f $(obj)usb_firmware.bin $(obj)usb_firmware.out $(obj)usb_firmware.out.map
+ifdef CONFIG_JOIN_UBOOT_SECUREOS
+		@$(obj)tools/join_uboot_secureos $(obj)$(AML_USB_UBOOT_NAME).temp  $(SECURE_OS_BIN) $(obj)$(AML_USB_UBOOT_NAME).secure_os.bin
+	@cp -f $(obj)$(AML_USB_UBOOT_NAME).secure_os.bin $(obj)$(AML_USB_UBOOT_NAME).temp
+endif
+	@./tools/secu_boot/encrypto3 $(obj)$(AML_USB_UBOOT_NAME).temp
+	@rm -f $(obj)$(AML_USB_UBOOT_NAME).temp
+	@$(obj)tools/convert --soc $(SOC)+  -s $(obj)ddr_init.bin -i $(obj)$(AML_USB_UBOOT_NAME).temp.aml -o $(obj)$(AML_USB_UBOOT_NAME)
+	@rm -f $(obj)$(AML_USB_UBOOT_NAME).temp.aml
+	@./tools/secu_boot/encrypto3 $(obj)$(AML_USB_UBOOT_NAME)
+ifdef CONFIG_AML_CRYPTO_UBOOT
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(BOOT_KEY_PATH)/aml-rsa-key.$(RSA_KEY_EXT) \
+	$@.aml $@.aml.encrypt $@.aml.efuse $(BOOT_KEY_PATH)/aml-aes-key.aes
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(BOOT_KEY_PATH)/aml-rsa-key.$(RSA_KEY_EXT) $(obj)$(AML_USB_UBOOT_NAME).aml \
+	$(obj)$(AML_USB_UBOOT_NAME).aml.encrypt dummy $(BOOT_KEY_PATH)/aml-aes-key.aes
+ifdef CONFIG_AML_SECU_BOOT_V2_2RSA
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(BOOT_KEY_PATH)/aml-rsa-key-2x.$(RSA_KEY_EXT) \
+	$@.aml.encrypt $@.aml.encrypt.2x $@.aml.encrypt.2x.efuse $(BOOT_KEY_PATH)/aml-aes-key-2x.aes 
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(BOOT_KEY_PATH)/aml-rsa-key.$(RSA_KEY_EXT) $(obj)$(AML_USB_UBOOT_NAME).aml.encrypt \
+	$(obj)$(AML_USB_UBOOT_NAME).aml.encrypt.2x dummy $(BOOT_KEY_PATH)/aml-aes-key.aes
+	@rm -f $@.aml.encrypt $(obj)$(AML_USB_UBOOT_NAME).aml.encrypt
+endif #end CONFIG_AML_SECU_BOOT_V2_2RSA
+endif #CONFIG_AML_CRYPTO_UBOOT
+ifdef CONFIG_AML_CRYPTO_IMG
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(AML_BOARD_PATH)aml-rsa-key.$(RSA_KEY_EXT) \
+	$(AML_BOARD_PATH)$(SOC)boot.img $(obj)$(SOC)boot.img.encrypt $(AML_BOARD_PATH)aml-aes-key.aes
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(AML_BOARD_PATH)aml-rsa-key.$(RSA_KEY_EXT) \
+	$(AML_BOARD_PATH)$(SOC)recovery.img $(obj)$(SOC)recovery.img.encrypt $(AML_BOARD_PATH)aml-aes-key.aes
+ifdef CONFIG_AML_SECU_BOOT_V2_2RSA
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(AML_BOARD_PATH)aml-rsa-key-2x.$(RSA_KEY_EXT) \
+	$(obj)$(SOC)boot.img.encrypt $(obj)$(SOC)boot.img.encrypt.2x $(AML_BOARD_PATH)aml-aes-key-2x.aes
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(AML_BOARD_PATH)aml-rsa-key-2x.$(RSA_KEY_EXT) \
+	$(obj)$(SOC)recovery.img.encrypt $(obj)$(SOC)recovery.img.encrypt.2x $(AML_BOARD_PATH)aml-aes-key-2x.aes
+	@rm -f $(obj)$(SOC)boot.img.encrypt $(obj)$(SOC)recovery.img.encrypt	
+endif #CONFIG_AML_SECU_BOOT_V2_2RSA
+endif #CONFIG_AML_CRYPTO_IMG
+endif #CONFIG_AML_SECU_BOOT_V2
+else #CONFIG_M6_SECU_BOOT
+	$(obj)tools/convert --soc $(SOC)  -s $(obj)firmware.bin -i $< -o $@
+	@$(obj)tools/convert --soc $(SOC)  -s $(obj)usb_spl.bin -i $(obj)u-boot-orig.bin -o $(obj)$(AML_USB_UBOOT_NAME)
+ifndef CONFIG_MESON_TRUSTZONE
+ifdef CONFIG_M6_SECU_AUTH_KEY
+	@./tools/secu_boot/encrypto2 $@ ./tools/secu_boot/keys/rsa_key_comm_pub.dat
+else
+	@./tools/secu_boot/encrypto2 $@
+	@./tools/secu_boot/encrypto2 $(obj)$(AML_USB_UBOOT_NAME)
+endif
+
+ifdef CONFIG_AML_CRYPTO_UBOOT
+ifeq ($(CONFIG_M6TVD),y)
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(BOOT_KEY_PATH)/aml-rsa-key.$(RSA_KEY_EXT) $@.aml $@.aml.encrypt $@.aml.efuse $(BOOT_KEY_PATH)/aml-aes-key.aes
+else #CONFIG_M6TVD
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(BOOT_KEY_PATH)/aml-rsa-key.$(RSA_KEY_EXT) $@.aml
+	@./tools/secu_boot/aml_encrypt_$(SOC) $(BOOT_KEY_PATH)/aml-rsa-key.$(RSA_KEY_EXT) $(obj)$(AML_USB_UBOOT_NAME).aml
+endif #CONFIG_M6TVD
+endif #CONFIG_AML_CRYPTO_UBOOT
+
+endif #CONFIG_MESON_TRUSTZONE
+endif #CONFIG_M6_SECU_BOOT
+
+else #CONFIG_IMPROVE_UCL_DEC
+$(obj)u-boot.bin:	$(obj)u-boot-comp-comp.bin $(obj)firmware.bin
+ifndef CONFIG_M6_SECU_BOOT
+	$(obj)tools/convert --soc $(SOC)  -s $(obj)firmware.bin -i $< -o $@
+else
+	$(obj)tools/convert --soc $(SOC)  -s $(obj)firmware.bin -i $< -o $@
+ifndef CONFIG_MESON_TRUSTZONE
+ifdef CONFIG_M6_SECU_AUTH_KEY
+	@./tools/secu_boot/encrypto2 $@ ./tools/secu_boot/keys/rsa_key_comm_pub.dat
+else
+	@./tools/secu_boot/encrypto2 $@
+endif
+endif
+endif
+
+$(obj)u-boot-comp-comp.bin:	$(obj)u-boot-comp-comp
+	$(OBJCOPY) ${OBJCFLAGS} -O binary $< $@
+
+#UCL_LIBS = $(obj)arch/$(ARCH)/cpu/$(CPU)/common/firmware/serial.o
+UCL_LIBS = $(obj)arch/$(ARCH)/cpu/$(CPU)/$(SOC)/mmutable.o
+UCL_LIBS += $(obj)arch/$(ARCH)/lib/cache.o
+UCL_LIBS += $(obj)arch/$(ARCH)/lib/cache_init.o
+UCL_LIBS += $(obj)arch/$(ARCH)/lib/cache-cp15.o
+UCL_LIBS += $(obj)arch/$(ARCH)/lib/cache_v7.o
+UCL_LIBS += $(obj)lib/ucl/libucl.o
+ifneq ($(CONFIG_L2_OFF), y)
+UCL_LIBS += $(obj)arch/$(ARCH)/lib/cache-l2x0.o
+endif
+
+$(obj)u-boot-comp-comp: $(obj)u-boot-comp.bin $(UCL_BOOTLIBS) $(LIBS)  firmware
+	$(LD) -Bstatic -T $(TOPDIR)/arch/$(ARCH)/cpu/$(CPU)/uclboot/u-boot.lds \
+			-Ttext $(UCL_TEXT_BASE) $(PLATFORM_LDFLAGS) --cref $(obj)arch/$(ARCH)/cpu/$(CPU)/uclboot/start.o \
+			--start-group $(UCL_BOOTLIBS)  $(UCL_LIBS) \
+			--end-group  $(PLATFORM_LIBGCC) \
+			-Map $(obj)u-boot-ucl_a.map -o $@
+
+endif #end CONFIG_IMPROVE_UCL_DEC
+
+endif  #END CONFIG_SELF_COMPRESS
+endif #end CONFIG_AML_MESON
+
+
+ifeq ($(CONFIG_AML_MESON),y)
+firmware:$(obj)firmware.bin
+.PHONY :	$(obj)firmware.bin libucl
+
+libucl:
+	$(MAKE) -C lib/ucl
+
+ifeq ($(CONFIG_IMPROVE_UCL_DEC),y)
+$(obj)firmware.bin: $(TIMESTAMP_FILE) $(VERSION_FILE) tools $(obj)include/autoconf.mk libucl
+#	$(MAKE) -C $(TOPDIR)/$(CPUDIR)/common/firmware all FIRMWARE=$@ UCL_BOOTLIBS=$(obj)lib/ucl/libucl.o
+	$(MAKE) -C $(TOPDIR)/$(CPUDIR)/common/firmware all FIRMWARE=$@
+else #NOT CONFIG_IMPROVE_UCL_DEC
+$(obj)firmware.bin: $(TIMESTAMP_FILE) $(VERSION_FILE) tools $(obj)include/autoconf.mk libucl
+	$(MAKE) -C $(TOPDIR)/$(CPUDIR)/common/firmware all FIRMWARE=$@ UCL_BOOTLIBS=$(obj)lib/ucl/libucl.o
+endif #END CONFIG_IMPROVE_UCL_DEC
+
+endif #END CONFIG_AML_MESON
 
 $(obj)u-boot.ldr:	$(obj)u-boot
 		$(CREATE_LDR_ENV)
@@ -371,8 +657,8 @@ GEN_UBOOT = \
 		UNDEF_SYM=`$(OBJDUMP) -x $(LIBBOARD) $(LIBS) | \
 		sed  -n -e 's/.*\($(SYM_PREFIX)__u_boot_cmd_.*\)/-u\1/p'|sort|uniq`;\
 		cd $(LNDIR) && $(LD) $(LDFLAGS) $(LDFLAGS_$(@F)) $$UNDEF_SYM $(__OBJS) \
-			--start-group $(__LIBS) --end-group $(PLATFORM_LIBS) \
-			-Map u-boot.map -o u-boot
+			--start-group $(__LIBS)  	--end-group $(PLATFORM_LIBS) \
+			-Map $(obj)u-boot.map -o u-boot
 $(obj)u-boot:	depend \
 		$(SUBDIRS) $(OBJS) $(LIBBOARD) $(LIBS) $(LDSCRIPT) $(obj)u-boot.lds
 		$(GEN_UBOOT)
@@ -387,7 +673,10 @@ endif
 $(OBJS):	depend
 		$(MAKE) -C $(CPUDIR) $(if $(REMOTE_BUILD),$@,$(notdir $@))
 
-$(LIBS):	depend $(SUBDIRS)
+$(LIBS):	depend $(SUBDIRS) $(obj)firmware.bin
+		$(MAKE) -C $(dir $(subst $(obj),,$@))
+
+$(UCL_BOOTLIBS):	$(obj)u-boot-comp.bin depend $(SUBDIRS)
 		$(MAKE) -C $(dir $(subst $(obj),,$@))
 
 $(LIBBOARD):	depend $(LIBS)
@@ -415,8 +704,9 @@ $(U_BOOT_ONENAND):	$(ONENAND_IPL) $(obj)u-boot.bin
 		cat $(ONENAND_BIN) $(obj)u-boot.bin > $(obj)u-boot-onenand.bin
 
 $(VERSION_FILE):
-		@( printf '#define U_BOOT_VERSION "U-Boot %s%s"\n' "$(U_BOOT_VERSION)" \
-		 '$(shell $(TOPDIR)/tools/setlocalversion $(TOPDIR))' ) > $@.tmp
+		@( printf '#define U_BOOT_VERSION "U-boot%s(%s@%s)"\n'  \
+		 '$(shell $(TOPDIR)/tools/setlocalversion $(TOPDIR))' "$(BOARD)" \
+		 '$(shell $(TOPDIR)/tools/setlocalbranch $(TOPDIR))') > $@.tmp
 		@( printf '#define CC_VERSION_STRING "%s"\n' \
 		 '$(shell $(CC) --version | head -n 1)' )>>  $@.tmp
 		@( printf '#define LD_VERSION_STRING "%s"\n' \
@@ -528,11 +818,11 @@ unconfig:
 		$(obj)include/autoconf.mk $(obj)include/autoconf.mk.dep
 
 %_config::	unconfig
-	@$(MKCONFIG) -A $(@:_config=)
+	$(MKCONFIG) -A $(@:_config=)
 
 sinclude $(obj).boards.depend
-$(obj).boards.depend:	boards.cfg
-	awk '(NF && $$1 !~ /^#/) { print $$1 ": " $$1 "_config; $$(MAKE)" }' $< > $@
+$(obj).boards.depend:	boards.cfg	board/amlogic/boards.cfg	 customer/board/boards.cfg
+	awk '(NF && $$1 !~ /^#/) { print $$1 ": " $$1 "_config; $$(MAKE)" }' $^ > $@
 
 #
 # Functions to generate common board directory names
@@ -1036,6 +1326,11 @@ versatilepb_config :	unconfig
 	@board/armltd/versatile/split_by_variant.sh $@
 
 #########################################################################
+## Amlogic -- CORTEX A9
+#########################################################################
+include $(wildcard $(SRCTREE)/board/amlogic/Readme.mk)
+
+#########################################################################
 ## XScale Systems
 #########################################################################
 
@@ -1149,7 +1444,7 @@ clean:
 
 clobber:	clean
 	@find $(OBJTREE) -type f \( -name '*.depend' \
-		-o -name '*.srec' -o -name '*.bin' -o -name u-boot.img \) \
+		-o -name '*.srec' -o -name '*.bin' -o -name u-boot.img -o -name '*.d' \) \
 		-print0 \
 		| xargs -0 rm -f
 	@rm -f $(OBJS) $(obj)*.bak $(obj)ctags $(obj)etags $(obj)TAGS \

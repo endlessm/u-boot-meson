@@ -37,6 +37,8 @@
 #include <linux/ctype.h>
 #include <asm/byteorder.h>
 
+#include "aml_dt.c"
+
 #if defined(CONFIG_CMD_USB)
 #include <usb.h>
 #endif
@@ -56,6 +58,10 @@
 #include <lzma/LzmaDec.h>
 #include <lzma/LzmaTools.h>
 #endif /* CONFIG_LZMA */
+
+#ifdef CONFIG_RESET_TO_SYSTEM
+#include <amlogic/aml_pmu_common.h>
+#endif
 
 #ifdef CONFIG_LZO
 #include <linux/lzo.h>
@@ -82,8 +88,13 @@ extern flash_info_t flash_info[]; /* info for FLASH chips */
 static int do_imls (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]);
 #endif
 
-#ifdef CONFIG_SILENT_CONSOLE
+#if defined(CONFIG_SILENT_CONSOLE) &&  \
+	(defined(CONFIG_SILENT_CONSOLE_LINUX_QUIET) || defined(CONFIG_DEPRECATED_SILENT_LINUX_CONSOLE))
 static void fixup_silent_linux (void);
+#endif
+
+#ifdef CONFIG_AUTO_SET_BOOTARGS_MEM
+void mem_size_arg_process(void);
 #endif
 
 static image_header_t *image_get_kernel (ulong img_addr, int verify);
@@ -211,10 +222,17 @@ static void bootm_start_lmb(void)
 #endif
 }
 
+#if defined(CONFIG_ANDROID_IMG) & defined(CONFIG_OF_LIBFDT)
+	static int fdt_addr;
+#endif
 static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	void		*os_hdr;
 	int		ret;
+#if defined(CONFIG_ANDROID_IMG)
+	void	*temp_os_hdr = NULL;
+	boot_img_hdr *temp_android_hdr = NULL;
+#endif
 
 	memset ((void *)&images, 0, sizeof (images));
 	images.verify = getenv_yesno ("verify");
@@ -272,6 +290,35 @@ static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 		}
 		break;
 #endif
+#if defined(CONFIG_ANDROID_IMG)
+	case IMAGE_FORMAT_ANDROID:
+		temp_os_hdr = os_hdr + 0x800;//shift 0x800 Android format head
+		temp_android_hdr = (void *) os_hdr;
+		images.os.type = image_get_type (temp_os_hdr);
+		images.os.comp = image_get_comp (temp_os_hdr);
+		images.os.os = image_get_os (temp_os_hdr);
+
+		images.os.end = image_get_image_end (temp_os_hdr);
+		images.os.load = image_get_load (temp_os_hdr);
+		images.rd_start = ((ulong)temp_android_hdr->kernel_size + 0x800 + (ulong)os_hdr 
+			+  ((ulong)temp_android_hdr->page_size - 1)) & (~((ulong)temp_android_hdr->page_size - 1));
+		images.rd_end = images.rd_start + (ulong)temp_android_hdr->ramdisk_size;
+		printf("    Ramdisk start addr = 0x%x, len = 0x%x\n",images.rd_start,temp_android_hdr->ramdisk_size );
+#if defined(CONFIG_OF_LIBFDT)
+		if(images.ft_len = (ulong)temp_android_hdr->second_size)
+		{
+			fdt_addr = (images.rd_end
+				+ ((ulong)temp_android_hdr->page_size - 1)) & (~((ulong)temp_android_hdr->page_size - 1));
+			/*get_multi_dt_entry, compatible with single dt*/
+			fdt_addr = get_multi_dt_entry(fdt_addr);
+			images.ft_addr = (char *)fdt_addr;
+			images.ft_len = fdt_totalsize(fdt_addr);
+			printf("    Flat device tree start addr = 0x%x, len = 0x%x magic=0x%x\n",
+			(int *)images.ft_addr,images.ft_len,*(unsigned int*)images.ft_addr);
+		}
+#endif
+		break;
+#endif
 	default:
 		puts ("ERROR: unknown image format type!\n");
 		return 1;
@@ -298,27 +345,50 @@ static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 	     (images.os.type == IH_TYPE_MULTI)) &&
 	    (images.os.os == IH_OS_LINUX)) {
 		/* find ramdisk */
-		ret = boot_get_ramdisk (argc, argv, &images, IH_INITRD_ARCH,
-				&images.rd_start, &images.rd_end);
-		if (ret) {
-			puts ("Ramdisk image is corrupt or invalid\n");
-			return 1;
+#ifndef CONFIG_ANDROID_IMG
+#if defined(CONFIG_AML_MESON_FIT)
+		//call boot_get_ramdisk() here for get ramdisk start addr
+		boot_get_ramdisk (argc, argv, &images, IH_INITRD_ARCH,
+						&images.rd_start, &images.rd_end);
+#endif
+#endif
+
+#if defined(CONFIG_ANDROID_IMG)
+		if(!images.rd_start)
+#endif
+		{
+			ret = boot_get_ramdisk (argc, argv, &images, IH_INITRD_ARCH,
+					&images.rd_start, &images.rd_end);
+			if (ret) {
+				puts ("Ramdisk image is corrupt or invalid\n");
+				return 1;
+			}
 		}
 
 #if defined(CONFIG_OF_LIBFDT)
 		/* find flattened device tree */
-		ret = boot_get_fdt (flag, argc, argv, &images,
-				    &images.ft_addr, &images.ft_len);
-		if (ret) {
-			puts ("Could not find a valid device tree\n");
-			return 1;
+#if defined(CONFIG_ANDROID_IMG)
+		if(!images.ft_addr)
+#endif
+		{
+			ret = boot_get_fdt (flag, argc, argv, &images,
+					    &images.ft_addr, &images.ft_len);
+			if (ret) {
+				puts ("Could not find a valid device tree\n");
+				return 1;
+			}
 		}
 
 		set_working_fdt_addr(images.ft_addr);
 #endif
 	}
 
+#if defined(CONFIG_ANDROID_IMG)
+	images.os.start = (ulong)temp_os_hdr;
+#else
 	images.os.start = (ulong)os_hdr;
+#endif
+	
 	images.state = BOOTM_STATE_START;
 
 	return 0;
@@ -482,13 +552,16 @@ static cmd_tbl_t cmd_bootm_sub[] = {
 	U_BOOT_CMD_MKENT(go, 0, 1, (void *)BOOTM_STATE_OS_GO, "", ""),
 };
 
+#ifdef TEST_UBOOT_BOOT_SPEND_TIME
+extern int main_loop_start;
+int bootm_start_time;
+#endif
 int do_bootm_subcommand (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	int ret = 0;
 	int state;
 	cmd_tbl_t *c;
 	boot_os_fn *boot_fn;
-
 	c = find_cmd_tbl(argv[1], &cmd_bootm_sub[0], ARRAY_SIZE(cmd_bootm_sub));
 
 	if (c) {
@@ -578,16 +651,62 @@ int do_bootm_subcommand (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv
 	return ret;
 }
 
+unsigned char* __aml_get_kernel_crypto_addr(const char* straddr)
+{
+    unsigned _loadaddr = load_addr;/* Default Load Address */
+
+    if(straddr)
+    {
+        unsigned useraddr = simple_strtoul(straddr, NULL, 16);
+
+#ifdef CONFIG_AML_SECU_BOOT_V2
+		extern int g_nIMGReadFlag;
+		if(_loadaddr != useraddr)
+			g_nIMGReadFlag = 0;
+#endif //#ifdef CONFIG_AML_SECU_BOOT_V2
+
+        _loadaddr = useraddr ? useraddr : _loadaddr;
+    }
+    _loadaddr += 0x800;//shift 0x800 Android format head
+
+    return (unsigned char*)_loadaddr;;
+}
+
+//Note: image loader should implementation
+//         aml_boot_addr_update() for seucre and normal boot
+unsigned char* aml_get_kernel_crypto_addr(const char* straddr)
+	__attribute__((weak, alias("__aml_get_kernel_crypto_addr")));
+
 /*******************************************************************/
 /* bootm - boot application image from image in memory */
 /*******************************************************************/
+
+#ifdef CONFIG_AML_SECU_BOOT_V2
+int g_nIMGReadFlag = 0;
+#endif //#ifdef CONFIG_AML_SECU_BOOT_V2
+
+#if defined(AML_UBOOT_LOG_PROFILE)
+extern int __g_nTE1_4BC722B3__ ;
+extern int __g_nTE2_4BC722B3__ ;
+extern int __g_nTEFlag_4BC722B3__;
+extern int __g_nTStep_4BC722B3__;
+#endif //AML_UBOOT_LOG_PROFILE
+
 
 int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	ulong		iflag;
 	ulong		load_end = 0;
-	int		ret;
+	int		    ret = 0;
 	boot_os_fn	*boot_fn;
+
+	AML_LOG_INIT("cmd_bootm");
+	AML_LOG_TE("cmd_bootm");
+	
+#ifdef TEST_UBOOT_BOOT_SPEND_TIME
+	bootm_start_time = get_utimer(0);
+#endif
+
 #ifdef CONFIG_NEEDS_MANUAL_RELOC
 	static int relocated = 0;
 
@@ -599,6 +718,58 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 				boot_os[i] += gd->reloc_off;
 		relocated = 1;
 	}
+#endif
+
+	AML_LOG_TE("cmd_bootm");
+
+#ifdef CONFIG_RESET_TO_SYSTEM
+    struct aml_pmu_driver *pmu_driver = NULL;
+    pmu_driver = aml_pmu_get_driver();
+    if (pmu_driver && pmu_driver->pmu_reset_flag_operation) {
+        pmu_driver->pmu_reset_flag_operation(RESET_FLAG_SET);
+    }
+#endif
+
+	AML_LOG_TE("cmd_bootm");
+
+#ifdef CONFIG_M6_SECU_BOOT
+#ifdef CONFIG_MESON_TRUSTZONE
+	extern int meson_trustzone_boot_check(unsigned char *addr);
+	ret = meson_trustzone_boot_check((unsigned char*)load_addr);
+#else
+	extern int aml_decrypt_kernel_image(void* kernel_image_address);
+	ret = aml_decrypt_kernel_image((void*)load_addr);
+#endif
+	if(ret != 0)
+	{
+		printf("Error! Illegal kernel image, please check!\n");
+		return ret;
+	}		
+#endif //CONFIG_M6_SECU_BOOT
+
+
+	AML_LOG_TE("cmd_bootm");
+
+#ifdef CONFIG_AML_SECU_BOOT_V2
+#ifdef CONFIG_MESON_TRUSTZONE
+	extern int meson_trustzone_boot_check(unsigned char *addr);
+	if(!g_nIMGReadFlag)
+	ret = meson_trustzone_boot_check(aml_get_kernel_crypto_addr(argc < 2 ? NULL : argv[1]));
+#else
+	extern int aml_sec_boot_check(unsigned char *pSRC);
+	if(!g_nIMGReadFlag)
+	ret = aml_sec_boot_check(aml_get_kernel_crypto_addr(argc < 2 ? NULL : argv[1]));
+#endif
+	if(0 != ret)
+		return ret;	
+#endif //CONFIG_AML_SECU_BOOT_V2
+
+
+	AML_LOG_TE("cmd_bootm");
+
+#ifdef CONFIG_AML_GATE_INIT
+		extern void gate_init(void);
+		gate_init();
 #endif
 
 	/* determine if we have a sub command */
@@ -618,8 +789,12 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			return do_bootm_subcommand(cmdtp, flag, argc, argv);
 	}
 
+	AML_LOG_TE("cmd_bootm");
+
 	if (bootm_start(cmdtp, flag, argc, argv))
 		return 1;
+
+	AML_LOG_TE("cmd_bootm");
 
 	/*
 	 * We have reached the point of no return: we are going to
@@ -641,7 +816,11 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	usb_stop();
 #endif
 
+	AML_LOG_TE("cmd_bootm");
+
 	ret = bootm_load_os(images.os, &load_end, 1);
+
+	AML_LOG_TE("cmd_bootm");
 
 	if (ret < 0) {
 		if (ret == BOOTM_ERR_RESET)
@@ -666,7 +845,11 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		}
 	}
 
+	AML_LOG_TE("cmd_bootm");
+
 	lmb_reserve(&images.lmb, images.os.load, (load_end - images.os.load));
+
+	AML_LOG_TE("cmd_bootm");
 
 	if (images.os.type == IH_TYPE_STANDALONE) {
 		if (iflag)
@@ -678,9 +861,16 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	show_boot_progress (8);
 
-#ifdef CONFIG_SILENT_CONSOLE
+#if defined(CONFIG_SILENT_CONSOLE) &&  \
+	(defined(CONFIG_SILENT_CONSOLE_LINUX_QUIET) || defined(CONFIG_DEPRECATED_SILENT_LINUX_CONSOLE))
 	if (images.os.os == IH_OS_LINUX)
 		fixup_silent_linux();
+#endif
+
+	AML_LOG_TE("cmd_bootm");
+
+#ifdef CONFIG_AUTO_SET_BOOTARGS_MEM
+	mem_size_arg_process();
 #endif
 
 	boot_fn = boot_os[images.os.os];
@@ -694,8 +884,23 @@ int do_bootm (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		return 1;
 	}
 
+	AML_LOG_TE("cmd_bootm");
+
 	arch_preboot_os();
 
+#ifdef TEST_UBOOT_BOOT_SPEND_TIME
+	{   int boot_kernel_start;
+	    boot_kernel_start = get_utimer(0);
+	    printf("bootm start to prepare boot kernel time:%dus\n",boot_kernel_start-bootm_start_time);
+	    printf("from main_loop start to kernel decompress finished time:%dus\n",boot_kernel_start-main_loop_start);
+	}
+#endif
+	ulong	temp_img_addr;
+
+	AML_LOG_TE("cmd_bootm");
+
+	/* use fprintf to always show this print even if console is silenced with GD_FLG_SILENT */
+	fprintf(stderr, "uboot time: %d us.\n", get_utimer(0));
 	boot_fn(0, argc, argv, &images);
 
 	show_boot_progress (-9);
@@ -831,6 +1036,8 @@ static void *boot_get_kernel (cmd_tbl_t *cmdtp, int flag, int argc, char * const
 	int		cfg_noffset;
 	int		os_noffset;
 #endif
+	ulong	temp_img_addr;
+
 
 	/* find out kernel image address */
 	if (argc < 2) {
@@ -856,14 +1063,20 @@ static void *boot_get_kernel (cmd_tbl_t *cmdtp, int flag, int argc, char * const
 
 	/* copy from dataflash if needed */
 	img_addr = genimg_get_image (img_addr);
+	temp_img_addr = img_addr;
 
 	/* check image type, for FIT images get FIT kernel node */
 	*os_data = *os_len = 0;
 	switch (genimg_get_format ((void *)img_addr)) {
+#if defined(CONFIG_ANDROID_IMG)
+	case IMAGE_FORMAT_ANDROID:
+		printf("## ANDROID Format IMAGE\n");
+		temp_img_addr = img_addr + 0x800;//Not break, just shift addr and go forward.
+#endif
 	case IMAGE_FORMAT_LEGACY:
 		printf ("## Booting kernel from Legacy Image at %08lx ...\n",
 				img_addr);
-		hdr = image_get_kernel (img_addr, images->verify);
+		hdr = image_get_kernel (temp_img_addr, images->verify);
 		if (!hdr)
 			return NULL;
 		show_boot_progress (5);
@@ -1074,6 +1287,9 @@ int do_iminfo (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 static int image_info (ulong addr)
 {
 	void *hdr = (void *)addr;
+#if defined(CONFIG_ANDROID_IMG)	
+	boot_img_hdr *hdr_andr = (void *) addr;
+#endif
 
 	printf ("\n## Checking Image at %08lx ...\n", addr);
 
@@ -1099,6 +1315,16 @@ static int image_info (ulong addr)
 		}
 		puts ("OK\n");
 		return 0;
+#if defined(CONFIG_ANDROID_IMG)
+	case IMAGE_FORMAT_ANDROID:
+		puts("ANDROID!\n");
+		printf ("kernel addr = 0x%x\n",hdr_andr->kernel_addr);
+		printf ("kernel size = 0x%x\n",hdr_andr->kernel_size);
+		printf ("ramdisk addr = 0x%x\n",hdr_andr->ramdisk_addr);
+		printf ("ramdisk size = 0x%x\n",hdr_andr->ramdisk_size);
+		printf ("page size = 0x%x\n", hdr_andr->page_size);
+		return 0;
+#endif
 #if defined(CONFIG_FIT)
 	case IMAGE_FORMAT_FIT:
 		puts ("   FIT image found\n");
@@ -1202,10 +1428,87 @@ U_BOOT_CMD(
 );
 #endif
 
+#define MEM_PROCESS_DEBUG_INFO 1
+#if MEM_PROCESS_DEBUG_INFO
+#define debug_print printf
+#else
+#define debug_print
+#endif
+#ifdef CONFIG_AUTO_SET_BOOTARGS_MEM
+void mem_size_arg_process(void)
+{
+	/*debug switcher. setenv ddr_auto_size=0, then will skip this function*/
+	char *ddr_auto = getenv("ddr_auto_size");
+	if(ddr_auto){
+		if(!strcmp(ddr_auto, "0")){
+			debug_print("\nddr_auto_size=0, skip process mem arg.\n\n");
+			return;
+		}
+		else{
+			debug_print("\nddr_auto_size!=0, process mem arg.\n\n");
+		}
+	}
+	else{
+		debug_print("\nddr_auto_size not set, process mem arg.\n\n");
+	}
+
+/*replace "mem=XX" argu with real ddr size*/
+	char buf[256] = {0};
+	char *start, *end;
+	start = 0; end = 0;
+	char buf_end[256] = {0};
+	char *cmdline = getenv ("bootargs");
+	unsigned int mem_size = 0;
+	int i;
+	for(i=0; i<CONFIG_NR_DRAM_BANKS; i++) {
+		mem_size += gd->bd->bi_dram[i].size;
+	}
+	/*generate mem=XX setting*/
+	char mem_str[16] = {0};
+	char mem_size_str[8] = {0};
+	mem_size = mem_size >> 20;	//MB
+	sprintf(mem_size_str, "%d", mem_size);
+	strcat(mem_str, "mem=");
+	strcat(mem_str, mem_size_str);
+	strcat(mem_str, "M");
+
+	unsigned int mem_str_length = strlen(mem_str);
+	unsigned int start_addr = 0;
+	printf("\nbefore ddr size arg process: %s\n", cmdline);
+	if(cmdline){
+		if((start = strstr(cmdline, "mem=")) != NULL) {
+			/*have mem= setting, replace it*/
+			start_addr = ((int)start) - ((int)cmdline);
+			memcpy(buf_end, start, (strlen(cmdline) - start_addr));
+			//strncpy(buf_end, strlen(start));
+			buf_end[(strlen(cmdline) - start_addr)] = '\0';
+			end = strchr(buf_end, ' ');
+			strncpy(buf, cmdline, start_addr);
+			strcat(buf, mem_str);
+			if(end)
+				/*more settings after mem=, add them*/
+				strcat(buf, end);
+			else
+				/*mem= is the end*/
+				strcat(buf, "\0");
+		}
+		else{
+			/*have no mem= setting, add it directly*/
+			strcpy(buf, cmdline);
+			strcat(buf, " ");
+			strcat(buf, mem_str);
+		}
+	}
+	debug_print("after ddr size arg process: %s\n\n", buf);
+	setenv("bootargs", buf);
+}
+#endif
+
 /*******************************************************************/
 /* helper routines */
 /*******************************************************************/
-#ifdef CONFIG_SILENT_CONSOLE
+#if defined(CONFIG_SILENT_CONSOLE) &&  \
+	(defined(CONFIG_SILENT_CONSOLE_LINUX_QUIET) || defined(CONFIG_DEPRECATED_SILENT_LINUX_CONSOLE))
 static void fixup_silent_linux ()
 {
 	char buf[256], *start, *end;
@@ -1217,6 +1520,7 @@ static void fixup_silent_linux ()
 
 	debug ("before silent fix-up: %s\n", cmdline);
 	if (cmdline) {
+#if defined(CONFIG_DEPRECATED_SILENT_LINUX_CONSOLE)
 		if ((start = strstr (cmdline, "console=")) != NULL) {
 			end = strchr (start, ' ');
 			strncpy (buf, cmdline, (start - cmdline + 8));
@@ -1228,12 +1532,18 @@ static void fixup_silent_linux ()
 			strcpy (buf, cmdline);
 			strcat (buf, " console=");
 		}
-	} else {
-		strcpy (buf, "console=");
+		setenv ("bootargs", buf);
+		debug ("after silent fix-up: %s\n", buf);
+#else // CONFIG_SILENT_CONSOLE_LINUX_QUIET
+		/* add "quiet" to bootargs */
+		if ((start = strstr (cmdline, "quiet")) == NULL) {
+			strcpy (buf, cmdline);
+			strcat (buf, " quiet");
+			setenv ("bootargs", buf);
+			debug ("after silent fix-up: %s\n", buf);
+		}
+#endif
 	}
-
-	setenv ("bootargs", buf);
-	debug ("after silent fix-up: %s\n", buf);
 }
 #endif /* CONFIG_SILENT_CONSOLE */
 

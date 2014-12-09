@@ -40,7 +40,7 @@
 #if defined (CONFIG_SERIAL_MULTI)
 #include <serial.h>
 #endif
-
+#error aa
 DECLARE_GLOBAL_DATA_PTR;
 
 #if !defined(CONFIG_CONS_INDEX)
@@ -221,7 +221,7 @@ _serial_getc(const int port)
 {
 	return NS16550_getc(PORT);
 }
-
+#error test
 int
 _serial_tstc(const int port)
 {
@@ -322,7 +322,7 @@ serial_setbrg(void)
 #endif
 
 #if defined(CONFIG_SERIAL_MULTI)
-
+#error aa
 DECLARE_ESERIAL_FUNCTIONS(1);
 struct serial_device eserial1_device =
 	INIT_ESERIAL_STRUCTURE(1,"eserial0","EUART1");

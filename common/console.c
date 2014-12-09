@@ -525,8 +525,10 @@ int console_init_f(void)
 	gd->have_console = 1;
 
 #ifdef CONFIG_SILENT_CONSOLE
-	if (getenv("silent") != NULL)
+	if (getenv("silent") != NULL) {
+		puts("silenced by def env\n");
 		gd->flags |= GD_FLG_SILENT;
+	}
 #endif
 
 	return 0;

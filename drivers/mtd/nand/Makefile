@@ -26,7 +26,9 @@ include $(TOPDIR)/config.mk
 LIB	:= $(obj)libnand.o
 
 ifdef CONFIG_CMD_NAND
+ifeq ($(CONFIG_NAND_AML),)
 COBJS-y += nand.o
+endif
 COBJS-y += nand_base.o
 COBJS-y += nand_bbt.o
 COBJS-y += nand_ecc.o
@@ -50,6 +52,12 @@ COBJS-$(CONFIG_NAND_S3C64XX) += s3c64xx.o
 COBJS-$(CONFIG_NAND_SPEAR) += spr_nand.o
 COBJS-$(CONFIG_NAND_OMAP_GPMC) += omap_gpmc.o
 COBJS-$(CONFIG_NAND_PLAT) += nand_plat.o
+COBJS-$(CONFIG_NAND_AML_M1) += aml_nand.o m1_nand.o
+COBJS-$(CONFIG_NAND_AML_M2) += aml_nand.o m2_nand.o
+COBJS-$(CONFIG_NAND_AML_M3) += aml_nand.o m3_nand.o
+COBJS-$(CONFIG_AML_NAND_KEY) += nand_key.o
+COBJS-$(CONFIG_NAND_AML_A3) += aml_nand.o a3_nand.o
+COBJS-$(CONFIG_SECURE_NAND) += secure_storage.o
 endif
 
 COBJS	:= $(COBJS-y)

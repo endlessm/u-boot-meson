@@ -23,27 +23,54 @@
  */
 #ifndef __ASM_ARM_DMA_MAPPING_H
 #define __ASM_ARM_DMA_MAPPING_H
-
+#include <asm/arch/cpu.h>
+#include <asm/io.h>
+#include <asm/cache.h>
+#include <asm/types.h>
+#include <malloc.h>
 enum dma_data_direction {
 	DMA_BIDIRECTIONAL	= 0,
 	DMA_TO_DEVICE		= 1,
 	DMA_FROM_DEVICE		= 2,
 };
-
-static void *dma_alloc_coherent(size_t len, unsigned long *handle)
+//typedef unsigned long dma_addr_t;
+static inline void *dma_alloc_coherent(size_t len, dma_addr_t *handle)
 {
-	*handle = (unsigned long)malloc(len);
-	return (void *)*handle;
+	void *addr = malloc(len + CONFIG_SYS_CACHE_LINE_SIZE);
+	if (!addr)
+		return 0;
+	flush_cache((unsigned long)addr, len + CONFIG_SYS_CACHE_LINE_SIZE);
+	*handle = (((((unsigned long)addr) + (CONFIG_SYS_CACHE_LINE_SIZE - 1)) &
+		~(CONFIG_SYS_CACHE_LINE_SIZE - 1))& ~(IO_REGION_BASE))|IO_REGION_BASE;
+	return addr;
+}
+static inline void dma_free_coherent(size_t len, dma_addr_t handle,void * addr)
+{
+	free(addr);
 }
 
-static inline unsigned long dma_map_single(volatile void *vaddr, size_t len,
+static inline dma_addr_t dma_map_single(void *vaddr, size_t len,
 					   enum dma_data_direction dir)
 {
-	return (unsigned long)vaddr;
+	assert(dir<3&&dir>=0);
+	switch (dir) {
+	case DMA_BIDIRECTIONAL:
+		dcache_flush_range((unsigned)vaddr, (unsigned)len);
+		break;
+	case DMA_TO_DEVICE:
+		dcache_clean_range((unsigned)vaddr, (unsigned)len);
+		break;
+	case DMA_FROM_DEVICE:
+		dcache_invalid_range((unsigned)vaddr, (unsigned)len);
+		break;
+
+	}
+	return virt_to_phys(vaddr);
+//	return (unsigned long)vaddr;
 }
 
-static inline void dma_unmap_single(volatile void *vaddr, size_t len,
-				    unsigned long paddr)
+static inline void dma_unmap_single(void *vaddr, size_t len,
+		dma_addr_t paddr)
 {
 }
 

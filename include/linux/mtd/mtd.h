@@ -134,6 +134,9 @@ struct mtd_info {
 
 	/* Kernel-only stuff starts here. */
 	const char *name;
+#ifdef CONFIG_MTD_DEVICE	//changed by Elvis
+	const char *info;
+#endif
 	int index;
 
 	/* ecc layout structure pointer - read only ! */

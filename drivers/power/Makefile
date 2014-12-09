@@ -28,6 +28,12 @@ LIB 	:= $(obj)libpower.o
 COBJS-$(CONFIG_FTPMU010_POWER)	+= ftpmu010.o
 COBJS-$(CONFIG_TWL4030_POWER)	+= twl4030.o
 COBJS-$(CONFIG_TWL6030_POWER)	+= twl6030.o
+COBJS-$(CONFIG_AW_AXP20) += axp_power/axp_power.o axp_power/axp20-sply.o axp_power/axp20-gpio.o
+COBJS-$(CONFIG_AML_PMU) += aml_pmu.o
+COBJS-$(CONFIG_RN5T618) += rn5t618.o
+COBJS-$(CONFIG_AML1216)  += aml_1216.o
+COBJS-$(CONFIG_AML1218)  += aml_1218.o
+COBJS-$(CONFIG_UBOOT_BATTERY_PARAMETERS) += battery_parameter.o 
 
 COBJS	:= $(COBJS-y)
 SRCS 	:= $(COBJS:.o=.c)

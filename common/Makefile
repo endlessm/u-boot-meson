@@ -45,7 +45,11 @@ COBJS-$(CONFIG_CMD_BOOTM) += cmd_bootm.o
 COBJS-y += cmd_help.o
 COBJS-y += cmd_nvedit.o
 COBJS-y += cmd_version.o
+//COBJS-y += cmd_tmp.o
+COBJS-$(CONFIG_DT_PRELOAD) += cmd_dtbload.o
 
+#remote support
+COBJS-$(CONFIG_IR_REMOTE) += cmd_irkey.o
 # environment
 COBJS-y += env_common.o
 COBJS-$(CONFIG_ENV_IS_IN_DATAFLASH) += env_dataflash.o
@@ -58,13 +62,39 @@ COBJS-$(CONFIG_ENV_IS_IN_FLASH) += env_flash.o
 COBJS-$(CONFIG_ENV_IS_IN_MG_DISK) += env_mgdisk.o
 COBJS-$(CONFIG_ENV_IS_IN_MMC) += env_mmc.o
 COBJS-$(CONFIG_ENV_IS_IN_NAND) += env_nand.o
+
+ifeq ($(CONFIG_NEXT_NAND),y)
+COBJS-$(CONFIG_ENV_IS_IN_AML_NAND) += env_amlnf.o
+endif
+
+#COBJS-y += partition_table.o
+COBJS-$(CONFIG_NEXT_NAND) += partition_table.o
+
+ifneq ($(CONFIG_NEXT_NAND),y)
+COBJS-$(CONFIG_ENV_IS_IN_AML_NAND) += env_amlnand.o
+endif
+
+COBJS-$(CONFIG_CMD_CALINFO) += cmd_calinfo.o
+
 COBJS-$(CONFIG_ENV_IS_IN_NVRAM) += env_nvram.o
 COBJS-$(CONFIG_ENV_IS_IN_ONENAND) += env_onenand.o
 COBJS-$(CONFIG_ENV_IS_IN_SPI_FLASH) += env_sf.o
 COBJS-$(CONFIG_ENV_IS_NOWHERE) += env_nowhere.o
-
+COBJS-$(CONFIG_ENV_IS_IN_EMMC) += env_emmc.o
+COBJS-$(CONFIG_STORE_COMPATIBLE) += env_amlnf.o env_sf.o env_mmc.o env_switch.o
+COBJS-$(CONFIG_SPI_NAND_COMPATIBLE) += env_amlnand.o env_sf.o env_switch.o
+COBJS-$(CONFIG_SPI_NAND_EMMC_COMPATIBLE) += env_amlnand.o env_sf.o env_mmc.o env_switch.o
 # command
+COBJS-$(CONFIG_SECURITYKEY) += cmd_secukey.o
+COBJS-$(CONFIG_SECURITYKEY) += cmd_usid.o cmd_uuid.o
+COBJS-$(CONFIG_CMD_SECURESTORE) += cmd_securestore.o
+COBJS-$(CONFIG_CMD_RANDOM) +=  cmd_randomb.o
+COBJS-$(CONFIG_HDCP_PREFETCH) += cmd_hdcp.o
+COBJS-$(CONFIG_GET_AML_KEY) += cmd_get_key.o
+COBJS-$(CONFIG_UNIFY_KEY_MANAGE) += cmd_unifykey.o
+#COBJS-$(CONFIG_SECURITYKEY) += cmd_tmp.o
 COBJS-$(CONFIG_CMD_AMBAPP) += cmd_ambapp.o
+COBJS-$(CONFIG_CMD_AUTOSCRIPT) += cmd_autoscript.o
 COBJS-$(CONFIG_SOURCE) += cmd_source.o
 COBJS-$(CONFIG_CMD_SOURCE) += cmd_source.o
 COBJS-$(CONFIG_CMD_BDI) += cmd_bdinfo.o
@@ -76,6 +106,8 @@ COBJS-$(CONFIG_CMD_CONSOLE) += cmd_console.o
 COBJS-$(CONFIG_CMD_CPLBINFO) += cmd_cplbinfo.o
 COBJS-$(CONFIG_DATAFLASH_MMC_SELECT) += cmd_dataflash_mmc_mux.o
 COBJS-$(CONFIG_CMD_DATE) += cmd_date.o
+COBJS-$(CONFIG_SECURITYKEY) += cmd_boardid.o
+COBJS-$(CONFIG_CMD_CHIPREV) += cmd_chiprev.o
 ifdef CONFIG_4xx
 COBJS-$(CONFIG_CMD_SETGETDCR) += cmd_dcr.o
 endif
@@ -116,10 +148,30 @@ COBJS-$(CONFIG_MII) += miiphyutil.o
 COBJS-$(CONFIG_CMD_MII) += miiphyutil.o
 COBJS-$(CONFIG_CMD_MII) += cmd_mii.o
 COBJS-$(CONFIG_CMD_MISC) += cmd_misc.o
-COBJS-$(CONFIG_CMD_MMC) += cmd_mmc.o
+#COBJS-$(CONFIG_CMD_MMC) += cmd_mmc.o
 COBJS-$(CONFIG_MP) += cmd_mp.o
+
+ifdef CONFIG_STORE_COMPATIBLE
+COBJS-$(CONFIG_CMD_MMC) += cmd_mmc_m8.o
+endif
+ifndef CONFIG_STORE_COMPATIBLE
+COBJS-$(CONFIG_CMD_MMC) += cmd_mmc.o
+endif
+ifneq ($(CONFIG_NEXT_NAND),y)
 COBJS-$(CONFIG_CMD_MTDPARTS) += cmd_mtdparts.o
 COBJS-$(CONFIG_CMD_NAND) += cmd_nand.o
+endif
+
+COBJS-$(CONFIG_SPI_NAND_COMPATIBLE) += cmd_interface.o
+COBJS-$(CONFIG_SPI_NAND_EMMC_COMPATIBLE) += cmd_interface.o
+
+ifeq ($(CONFIG_NEXT_NAND),y)
+COBJS-y += store_interface.o
+COBJS-y += cmd_burnup.o
+endif
+
+COBJS-$(CONFIG_AML_GPIO_CMD) += cmd_gpio.o
+
 COBJS-$(CONFIG_CMD_NET) += cmd_net.o
 COBJS-$(CONFIG_CMD_ONENAND) += cmd_onenand.o
 COBJS-$(CONFIG_CMD_OTP) += cmd_otp.o
@@ -151,8 +203,25 @@ endif
 COBJS-$(CONFIG_CMD_XIMG) += cmd_ximg.o
 COBJS-$(CONFIG_YAFFS2) += cmd_yaffs2.o
 COBJS-$(CONFIG_VFD) += cmd_vfd.o
+COBJS-$(CONFIG_CMD_SUSPEND) += cmd_suspend.o
+COBJS-$(CONFIG_CMD_AML) += cmd_aml.o
+COBJS-$(CONFIG_CMD_AML_MAGIC) += cmd_magic.o
+COBJS-$(CONFIG_EFUSE) += cmd_efuse.o
+COBJS-$(CONFIG_RTC_DAY_TEST) += cmd_rtc.o
+COBJS-$(CONFIG_CMD_SARADC) += cmd_saradc.o
+COBJS-$(CONFIG_CMD_IMGPACK) += cmd_imgpack.o
+COBJS-$(CONFIG_CMD_REBOOT) += cmd_reboot.o
+COBJS-$(CONFIG_CMD_MATH) += cmd_math.o
+COBJS-$(CONFIG_CMD_GPIO_KEY) += cmd_gpiokey.o
+COBJS-$(CONFIG_CMD_IMGREAD) += cmd_imgread.o
+COBJS-$(CONFIG_CMD_PWM) += cmd_pwm.o
+COBJS-$(CONFIG_CMD_LOGO) += cmd_logo.o
+
+COBJS-$(CONFIG_DSP_VSYNC_INTERRUPT) += cmd_tvdsp.o
 
 # others
+COBJS-$(CONFIG_CMD_DDR_TEST) += cmd_ddr_test.o
+COBJS-$(CONFIG_CMD_DDR_TEST) += cmd_d2pll.o
 COBJS-$(CONFIG_DDR_SPD) += ddr_spd.o
 COBJS-$(CONFIG_HWCONFIG) += hwconfig.o
 COBJS-$(CONFIG_CONSOLE_MUX) += iomux.o
@@ -164,7 +233,12 @@ COBJS-$(CONFIG_LYNXKDI) += lynxkdi.o
 COBJS-$(CONFIG_MODEM_SUPPORT) += modem.o
 COBJS-$(CONFIG_UPDATE_TFTP) += update.o
 COBJS-$(CONFIG_USB_KEYBOARD) += usb_kbd.o
-
+COBJS-$(CONFIG_VIDEO_AML) += cmd_video.o
+COBJS-$(CONFIG_AML_FONT) += devfont.o
+COBJS-$(CONFIG_AML_AUTOSCRIPT) += aml_autoscript.o
+COBJS-$(CONFIG_AML_AXI_RATIO)+=cmd_clockchange.o
+COBJS-$(CONFIG_AML_JPEG_LOGO) += cmd_jpeg.o
+COBJS-$(CONFIG_AML_JPEG_LOGO) += jdecEngine.o
 
 COBJS	:= $(sort $(COBJS-y))
 XCOBJS	:= $(sort $(XCOBJS-y))
