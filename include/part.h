@@ -114,7 +114,7 @@ int get_device(const char *ifname, const char *dev_str,
 	       block_dev_desc_t **dev_desc);
 int get_device_and_partition(const char *ifname, const char *dev_str,
 			     block_dev_desc_t **dev_desc,
-			     disk_partition_t *info);
+			     disk_partition_t *info, int allow_whole_dev);
 
 #ifdef CONFIG_MAC_PARTITION
 /* disk/part_mac.c */
