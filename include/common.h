@@ -176,6 +176,15 @@ typedef void (interrupt_handler_t)(void *);
 
 #endif /* CONFIG_SERIAL_MULTI */
 
+#define LBAFU "%lu"
+#define ARCH_DMA_MINALIGN 64
+#define ALLOC_CACHE_ALIGN_BUFFER(type, name, size)			\
+	char __##name[ROUND(size * sizeof(type), ARCH_DMA_MINALIGN) +	\
+		      ARCH_DMA_MINALIGN - 1];				\
+									\
+	type *name = (type *) ALIGN((uintptr_t)__##name, ARCH_DMA_MINALIGN)
+
+
 /*
  * General Purpose Utilities
  */

@@ -230,6 +230,14 @@ int fs_write(const char *filename, ulong addr, int offset, int len)
 	return ret;
 }
 
+static int setenv_hex(const char *varname, ulong value)
+{
+	char str[17];
+
+	sprintf(str, "%lx", value);
+	return setenv(varname, str);
+}
+
 int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 		int fstype)
 {

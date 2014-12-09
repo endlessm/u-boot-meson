@@ -43,6 +43,12 @@
  * Monitor Command Table
  */
 
+enum command_ret_t {
+	CMD_RET_SUCCESS,	/* 0 = Success */
+	CMD_RET_FAILURE,	/* 1 = Failure */
+	CMD_RET_USAGE = -1,	/* Failure, please report 'usage' error */
+};
+
 struct cmd_tbl_s {
 	char		*name;		/* Command Name			*/
 	int		maxargs;	/* maximum number of arguments	*/
