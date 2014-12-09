@@ -31,10 +31,14 @@
 /u-boot.lds
 /u-boot-onenand.bin
 /u-boot-flexonenand.bin
+/build
 
 #
 # Generated files
 #
+
+*boot_code.dat
+*smp.dat
 
 *.depend
 /LOG
