@@ -1,0 +1,15 @@
+diff --git a/arch/arm/cpu/aml_meson/m6/firmware/arc_power/config.h b/arch/arm/cpu/aml_meson/m6/firmware/arc_power/config.h
+index 5774b97..cd59cf1 100755
+--- a/arch/arm/cpu/aml_meson/m6/firmware/arc_power/config.h
++++ b/arch/arm/cpu/aml_meson/m6/firmware/arc_power/config.h
+@@ -13,8 +13,8 @@
+ /*
+  * PMU device select, CONFIG_AML_PMU and CONFIG_AW_AXP20 should not be both existed
+  */
+-//#define CONFIG_AML_PMU 
+-#define CONFIG_AW_AXP20
++#define CONFIG_AML_PMU 
++//#define CONFIG_AW_AXP20
+ 
+ #ifdef CONFIG_AML_PMU
+ #define CONFIG_POWER_SPL

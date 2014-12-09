@@ -1,0 +1,59 @@
+diff --git a/drivers/video/lcd/aml_lcd.c b/drivers/video/lcd/aml_lcd.c
+index e8e290d..e27f4fd 100755
+--- a/drivers/video/lcd/aml_lcd.c
++++ b/drivers/video/lcd/aml_lcd.c
+@@ -668,14 +668,18 @@ int lcd_display_bitmap(ulong bmp_image, int x, int y)
+ 	unsigned colors, bpix, bmp_bpix;
+ 	unsigned long compression;
+ 
++	uchar *tmp_bmap;/////
+ 	if (!((bmp->header.signature[0]=='B') &&
+ 		(bmp->header.signature[1]=='M'))) {
+ 		printf ("Error: no valid bmp image at %lx\n", bmp_image);
+ 		return 1;
+ 	}
+ 
+-	width = le32_to_cpu (bmp->header.width);
+-	height = le32_to_cpu (bmp->header.height);
++	//为了翻转
++	height= le32_to_cpu (bmp->header.width);
++	width= le32_to_cpu (bmp->header.height);
++	debug("TEST:height = %d, width = %d\n", height, width);
++
+ 	bmp_bpix = le16_to_cpu(bmp->header.bit_count);
+ 	colors = 1 << bmp_bpix;
+ 	compression = le32_to_cpu (bmp->header.compression);
+@@ -772,6 +776,7 @@ int lcd_display_bitmap(ulong bmp_image, int x, int y)
+ 		break;
+ #endif /* LCD_BPP ==LCD_COLOR8 */
+ 
++#if 0
+ #if(LCD_BPP ==LCD_COLOR16)
+ 	case 16:
+ 		for (i = 0; i < height; ++i) {
+@@ -785,6 +790,25 @@ int lcd_display_bitmap(ulong bmp_image, int x, int y)
+ 		}
+ 		break;
+ #endif /* LCD_BPP ==LCD_COLOR16 */
++#endif
++#if 1
++#if(LCD_BPP ==LCD_COLOR16)
++	case 16:
++		for (i = 0; i < height; ++i) {
++			for (j = 0; j < width; j++) {
++				//*(fb++) = *(bmap++);
++				//*(fb++) = *(bmap++);
++				//为了翻转
++				tmp_bmap = bmap + j*height*LCD_BPP/8 + i*LCD_BPP/8;
++				*(fb++) = *(tmp_bmap++);
++				*(fb++) = *(tmp_bmap++);
++			}
++			//bmap += (padded_line - width) * 2;
++			fb   -= (width * 2 + lcd_line_length);
++		}
++		break;
++#endif /* LCD_BPP ==LCD_COLOR16 */
++#endif /* LCD_BPP ==LCD_COLOR16 */
+ 
+ #if(LCD_BPP ==LCD_COLOR24)
+ 	case 24:
