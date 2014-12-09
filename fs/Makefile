@@ -22,8 +22,23 @@
 #
 #
 
+include $(TOPDIR)/config.mk
+
+LIB	= $(obj)libfs.o
+
+COBJS-y	+= fs.o
+
+COBJS	:= $(COBJS-y)
+SRCS	:= $(COBJS:.o=.c)
+OBJS	:= $(addprefix $(obj),$(COBJS))
+
+all:	$(LIB)
+
+$(LIB):	$(obj).depend $(OBJS)
+	$(call cmd_link_o_target, $(OBJS))
+
 subdirs-$(CONFIG_CMD_CRAMFS) := cramfs
-subdirs-$(CONFIG_CMD_EXT2) += ext2
+subdirs-$(CONFIG_CMD_EXT4) += ext4
 subdirs-$(CONFIG_CMD_FAT) += fat
 subdirs-$(CONFIG_CMD_FDOS) += fdos
 subdirs-$(CONFIG_CMD_JFFS2) += jffs2
@@ -36,3 +51,12 @@ SUBDIRS	:= $(subdirs-y)
 $(obj).depend all:
 	@for dir in $(SUBDIRS) ; do \
 		$(MAKE) -C $$dir $@ ; done
+
+#########################################################################
+
+# defines $(obj).depend target
+include $(SRCTREE)/rules.mk
+
+sinclude $(obj).depend
+
+#########################################################################

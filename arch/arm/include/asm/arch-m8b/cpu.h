@@ -258,7 +258,7 @@
 /*
  * File system
  */
-#define CONFIG_CMD_EXT2		/* EXT2 Support			*/
+#define CONFIG_CMD_EXT4		/* EXT2 Support			*/
 #define CONFIG_CMD_FAT		/* FAT support			*/
 
 
