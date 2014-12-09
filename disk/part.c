@@ -429,6 +429,28 @@ void print_part (block_dev_desc_t * dev_desc)
 	puts ("## Unknown partition table\n");
 }
 
+int get_device(const char *ifname, const char *dev_str,
+	       block_dev_desc_t **dev_desc)
+{
+	char *ep;
+	int dev;
+
+	dev = simple_strtoul(dev_str, &ep, 16);
+	if (*ep) {
+		printf("** Bad device specification %s %s **\n",
+		       ifname, dev_str);
+		return -1;
+	}
+
+	*dev_desc = get_dev(ifname, dev);
+	if (!(*dev_desc) || ((*dev_desc)->type == DEV_TYPE_UNKNOWN)) {
+		printf("** Bad device %s %s **\n", ifname, dev_str);
+		return -1;
+	}
+
+	return dev;
+}
+
 int get_device_and_partition(const char *ifname, const char *dev_str,
 			     block_dev_desc_t **dev_desc,
 			     disk_partition_t *info)
