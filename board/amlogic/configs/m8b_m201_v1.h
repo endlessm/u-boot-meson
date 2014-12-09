@@ -66,7 +66,7 @@
 //#define CONFIG_SARADC 1
 #define CONFIG_EFUSE 1
 //#define CONFIG_MACHID_CHECK 1
-#define CONFIG_CMD_SUSPEND 1
+//#define CONFIG_CMD_SUSPEND 1
 //#define CONFIG_IR_REMOTE 1
 #define CONFIG_IR_REMOTE 1
 #define CONFIG_L2_OFF	 1
@@ -424,7 +424,7 @@
  * power down
  */
 //#define CONFIG_CMD_RUNARC 1 /* runarc */
-#define CONFIG_AML_SUSPEND 1
+//#define CONFIG_AML_SUSPEND 1
 
 #define CONFIG_CMD_LOGO
 
