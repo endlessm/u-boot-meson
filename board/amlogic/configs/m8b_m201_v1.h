@@ -28,7 +28,7 @@
 //#define CONFIG_VIDEO_AMLTVOUT 1
 //Enable LCD output
 //#define CONFIG_VIDEO_AMLLCD
-#define LCD_BPP LCD_COLOR16
+//#define LCD_BPP LCD_COLOR16
 
 #define CONFIG_ACS
 #ifdef CONFIG_ACS
@@ -68,7 +68,7 @@
 //#define CONFIG_MACHID_CHECK 1
 //#define CONFIG_CMD_SUSPEND 1
 //#define CONFIG_IR_REMOTE 1
-#define CONFIG_IR_REMOTE 1
+//#define CONFIG_IR_REMOTE 1
 #define CONFIG_L2_OFF	 1
 
 #define CONFIG_CMD_NET   1
@@ -125,7 +125,7 @@
 #define CONFIG_CMD_AUTOSCRIPT
 
 #define CONFIG_CMD_REBOOT 1
-#define CONFIG_PREBOOT 
+//#define CONFIG_PREBOOT 
 
 #define  CONFIG_AML_GATE_INIT	1
 
@@ -404,7 +404,7 @@
 
 /* Pass open firmware flat tree*/
 #define CONFIG_OF_LIBFDT	1
-#define CONFIG_DT_PRELOAD	1
+//#define CONFIG_DT_PRELOAD	1
 #define CONFIG_SYS_BOOTMAPSZ   PHYS_MEMORY_SIZE       /* Initial Memory map for Linux */
 #define CONFIG_ANDROID_IMG	1
 
