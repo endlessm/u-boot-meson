@@ -1,0 +1,11 @@
+Source: u-boot-meson
+Section: misc
+Priority: extra
+Build-Depends: quilt (>= 0.46-7~), debhelper (>= 7.0.50~), gcc-arm-none-eabi
+Standards-Version: 3.9.1
+Maintainer: Daniel Drake <drake@endlessm.com>
+
+Package: u-boot-meson-m201
+Architecture: armhf
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: U-Boot bootloader binary for the Amlogic M201 board

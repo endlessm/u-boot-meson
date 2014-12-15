@@ -1,0 +1,21 @@
+#
+# config target:
+#   an _config gets tacked on and used for the u-boot config
+#
+# package name:
+#   underscores are not allowed in debian package names so
+#   this is normally just config target with underscores replaced
+#   with dashes 
+#
+# build target:
+#   some targets do not do the right thing unless asked explicitly
+#   specifically one must specify u-boot.imx for mx5x
+#   use - for the case where no target should be passed
+#
+# install target(s):
+#   list of files to include in deb
+#
+# config		package			build		install
+# target		name			target		target(s)
+#
+m8b_m201_1G		m201		u-boot.bin	u-boot-m201.bin

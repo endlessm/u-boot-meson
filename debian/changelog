@@ -1,0 +1,5 @@
+u-boot-meson (2011.03-0) eos; urgency=medium
+
+  * Initial packaging based on exynos4 package
+
+ -- Daniel Drake <drake@endlessm.com>  Wed, 10 Dec 2014 17:25:02 -0800

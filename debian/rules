@@ -1,0 +1,70 @@
+#!/usr/bin/make -f
+
+# the upstream build passes LDFLAGS directly to ld instead of calling gcc for
+# linking; so instead of passing -Wl,foo in LDFLAGS as in automake builds, one
+# should set LDFLAGS to foo directly
+comma := ,
+LDFLAGS := $(patsubst -Wl$(comma)%,%,$(LDFLAGS))
+
+# remove -Bsymbolic-functions from LDFLAGS because is messes up ld and some
+# initializations end up being zero
+LDFLAGS := $(patsubst -Bsymbolic-functions,,$(LDFLAGS))
+
+deb_source := $(shell dpkg-parsechangelog | sed -n 's/^Source: //p')
+deb_version := $(shell dpkg-parsechangelog | sed -n 's/^Version: //p')
+upstream_version := $(shell echo '$(deb_version)' | sed 's/.*://; s/-[^-]*$$//')
+
+get-orig-source:
+	rm -rf $(deb_source)-$(upstream_version)
+	rm -f $(deb_source)-$(upstream_version).orig.tar.gz
+	git clone --depth 1 git://git.denx.de/u-boot.git $(deb_source)-$(upstream_version)
+	cd $(deb_source)-$(upstream_version) && git archive \
+		--format=tar \
+		--prefix=$(deb_source)-$(upstream_version)/ \
+		$(upstream_version) \
+		| gzip >../$(deb_source)_$(upstream_version).orig.tar.gz
+	rm -rf $(deb_source)-$(upstream_version)
+
+%:
+	dh --with quilt $@
+
+override_dh_auto_clean:
+	# upstream only cleans these files if passing the right O=, but it
+	# shouldn't create these the source tree in the first place
+	# XXX this hardcodes "arm"
+	rm -f arch/arm/include/asm/arch arch/arm/include/asm/proc
+	rm -rf debian/build
+	rm -f examples/standalone/bootflags.o examples/standalone/bootflags.su
+	rm -f examples/standalone/stubs.o examples/standalone/stubs.su
+	rm -f .boards.depend
+
+override_dh_auto_build:
+	echo building using default compiler
+	while read plat deb buildtarget ignoreinstalltargets; do \
+		expr $$plat : "^#" > /dev/null && continue; \
+		mkdir -p debian/build/$$plat; \
+		cp debian/bin/mkbl2 $$PWD/debian/build/$$plat; \
+		$(MAKE) O=$$PWD/debian/build/$$plat $${plat}_config; \
+		test "$$buildtarget" = "-" && $(MAKE) CROSS_COMPILE=arm-none-eabi- O=$$PWD/debian/build/$$plat; \
+		test "$$buildtarget" != "-" && $(MAKE) CROSS_COMPILE=arm-none-eabi- O=$$PWD/debian/build/$$plat \
+			$$PWD/debian/build/$$plat/$$buildtarget; \
+		true; \
+	done <debian/platforms-debs-targets
+
+override_dh_auto_install:
+	while read plat deb ignorebuildtarget installtargets; do \
+		expr $$plat : "^#" > /dev/null && continue; \
+		for target in $$installtargets; do \
+			mkdir -p debian/u-boot-meson-$$deb/usr/lib/u-boot/$$plat/; \
+			test -e debian/build/$$plat/$$target && \
+				install	-m644 \
+					-t debian/u-boot-meson-$$deb/usr/lib/u-boot/$$plat/ \
+					debian/build/$$plat/$$target; \
+			mkdir -p debian/u-boot-meson-$$deb/boot/; \
+			test -e debian/build/$$plat/examples/standalone/bootflags.bin && \
+				install	-m644 \
+					-t debian/u-boot-meson-$$deb/usr/lib/u-boot/$$plat/ \
+					debian/build/$$plat/examples/standalone/bootflags.bin; \
+		done; \
+		true; \
+	done <debian/platforms-debs-targets
