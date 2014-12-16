@@ -664,7 +664,7 @@ unsigned int before_nand_init =  get_utimer(0);
 
 	AML_LOG_TE("board");
 
-#if defined (CONFIG_GENERIC_MMC) && defined(CONFIG_STORE_COMPATIBLE)
+#if defined (CONFIG_GENERIC_MMC) && defined(CONFIG_STORE_COMPATIBLE) && !defined(CONFIG_FORCE_EMMC_BOOT)
     if((device_boot_flag == SPI_EMMC_FLAG) || (device_boot_flag == EMMC_BOOT_FLAG)) { // if eMMC/tSD is exist
         mmc = find_mmc_device(1);
         if (mmc) {

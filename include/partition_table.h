@@ -19,6 +19,7 @@
 #endif
 
 //boot_flag
+
 #define R_BOOT_DEVICE_FLAG  READ_CBUS_REG(ASSIST_POR_CONFIG)
 
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8
@@ -26,6 +27,8 @@
 #else
 #define POR_BOOT_VALUE 	(R_BOOT_DEVICE_FLAG & 7)
 #endif
+
+#ifndef CONFIG_FORCE_EMMC_BOOT
 
 #define POR_NAND_BOOT()	 ((POR_BOOT_VALUE == 7) || (POR_BOOT_VALUE == 6))
 #define POR_SPI_BOOT()  		((POR_BOOT_VALUE == 5) || (POR_BOOT_VALUE == 4))
@@ -36,6 +39,15 @@
 	#define POR_EMMC_BOOT()	 (POR_BOOT_VALUE == 3)
 #endif
 #define POR_CARD_BOOT() 	(POR_BOOT_VALUE == 0)
+
+#else
+
+#define POR_NAND_BOOT()		(0)
+#define POR_SPI_BOOT()		(0)
+#define POR_EMMC_BOOT()		(1)
+#define POR_CARD_BOOT()		(0)
+
+#endif
 
 
 #define SPI_BOOT_FLAG 			0

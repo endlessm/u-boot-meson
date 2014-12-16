@@ -49,7 +49,7 @@ int emmc_env_init(void)
 	return 0;
 }
 
-#ifndef CONFIG_STORE_COMPATIBLE
+#if !defined(CONFIG_STORE_COMPATIBLE) || defined(CONFIG_FORCE_EMMC_BOOT)
 void emmc_env_relocate_spec(void)
 {
 #if !defined(ENV_IS_EMBEDDED)
@@ -167,7 +167,7 @@ int emmc_saveenv(void)
     env_t *env_new_p = NULL;
     ssize_t	len;
     char	*res;
-#ifdef  CONFIG_STORE_COMPATIBLE
+#if defined(CONFIG_STORE_COMPATIBLE) && !defined(CONFIG_FORCE_EMMC_BOOT)
 	char *name = "env";
 	struct partitions *part_info = NULL;
 	int blk_shift = 0;
@@ -209,7 +209,7 @@ int emmc_saveenv(void)
 	}
 	env_new_p->crc   = crc32(0, env_new_p->data, ENV_SIZE);	
 	mmc_init(mmc);
-#ifdef CONFIG_STORE_COMPATIBLE
+#if defined(CONFIG_STORE_COMPATIBLE) && !defined(CONFIG_FORCE_EMMC_BOOT)
 	blk_shift =  ffs(mmc->read_bl_len) - 1;
 	blk = part_info->offset >> blk_shift;
 	store_dbg("cnt %llx",cnt);
