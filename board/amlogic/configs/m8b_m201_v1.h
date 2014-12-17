@@ -271,7 +271,7 @@
 
 #define CONFIG_BOOTCOMMAND   "run endlessboot"
 
-//#define CONFIG_FORCE_EMMC_BOOT
+#define CONFIG_FORCE_EMMC_BOOT
 
 #define CONFIG_AUTO_COMPLETE	1
 #define CONFIG_ENV_SIZE         (64*1024)
