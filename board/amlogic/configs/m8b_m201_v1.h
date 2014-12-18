@@ -177,7 +177,7 @@
 	"firstboot=1\0" \
 	"store=0\0"\
 	"preloaddtb=imgread dtb boot ${loadaddr}\0" \
-	"preboot=run prepare\0" \
+	"preboot=video open; video clear; video dev open ${outputmode}\0"\
     \
     "update_ir="\
         "if irdetect; then run update; fi\0" \
@@ -225,12 +225,6 @@
          "mmcinfo;"\
          "fatload mmc 0 ${loadaddr} boot.img;"\
          "bootm\0" \
-    \
-    "prepare="\
-        "logo size ${outputmode}; video open; video clear; video dev open ${outputmode};"\
-        "imgread pic logo bootup ${loadaddr_logo}; "\
-        "bmp display ${bootup_offset}; bmp scale;"\
-        "\0"\
 	\
 	"storeboot="\
         "echo Booting...; "\
