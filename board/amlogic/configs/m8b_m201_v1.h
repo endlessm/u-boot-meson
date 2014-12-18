@@ -125,7 +125,7 @@
 #define CONFIG_CMD_AUTOSCRIPT
 
 #define CONFIG_CMD_REBOOT 1
-//#define CONFIG_PREBOOT 
+#define CONFIG_PREBOOT
 
 #define  CONFIG_AML_GATE_INIT	1
 
@@ -177,16 +177,7 @@
 	"firstboot=1\0" \
 	"store=0\0"\
 	"preloaddtb=imgread dtb boot ${loadaddr}\0" \
-	"preboot="\
-        "if itest ${upgrade_step} == 3; then run prepare; run storeargs; run update; fi; "\
-        "if itest ${upgrade_step} == 1; then  "\
-            "defenv; setenv upgrade_step 2; saveenv;"\
-        "fi; "\
-        "run prepare;"\
-        "run storeargs;"\
-        "get_rebootmode; clear_rebootmode; echo reboot_mode=${reboot_mode};" \
-        "run update_ir; " \
-        "run switch_bootmode\0" \
+	"preboot=run prepare\0" \
     \
     "update_ir="\
         "if irdetect; then run update; fi\0" \
