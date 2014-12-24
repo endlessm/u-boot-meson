@@ -516,7 +516,11 @@ unsigned int emmc_init(void)
 {
     int ret = -1;
     struct mmc *mmc = NULL;
+#ifdef CONFIG_FORCE_EMMC_BOOT
+	mmc = find_mmc_device(0);
+#else
 	mmc = find_mmc_device(1);
+#endif
 	if (mmc) {
 		ret = mmc_init(mmc); // init eMMC/tSD+    
 	}
