@@ -22,7 +22,7 @@
 //UART Sectoion
 #define CONFIG_CONS_INDEX   2
 
-#define CONFIG_NEXT_NAND
+//#define CONFIG_NEXT_NAND
 //#define CONFIG_SECURE_NAND  1
 //support "boot,bootd"
 //#define CONFIG_CMD_BOOTD 1
@@ -34,7 +34,7 @@
 //#define CONFIG_VIDEO_AMLLCD
 //#define LCD_BPP LCD_COLOR16
 
-#define CONFIG_ACS
+//#define CONFIG_ACS
 #ifdef CONFIG_ACS
 #define CONFIG_DDR_SIZE_IND_ADDR 0xD9000000	//pass memory size, spl->uboot
 #endif
@@ -48,11 +48,11 @@
 #define CONFIG_SD_BURNING_SUPPORT_UI     1//have bmp display to indicate burning state when sdcard burning
 #endif//#ifdef CONFIG_NEXT_NAND
 
-#define CONFIG_UNIFY_KEY_MANAGE 1       //Support burning key with usb tool
+//#define CONFIG_UNIFY_KEY_MANAGE 1       //Support burning key with usb tool
 #define CONFIG_CMD_PWM  1
 
 //Enable storage devices
-#define CONFIG_CMD_NAND  1
+//#define CONFIG_CMD_NAND  1
 #define CONFIG_VIDEO_AML 1
 #define CONFIG_CMD_BMP 1
 #define CONFIG_VIDEO_AMLTVOUT 1
@@ -285,7 +285,7 @@
 #define CONFIG_AUTO_COMPLETE	1
 #define CONFIG_ENV_SIZE         (64*1024)
 
-#define CONFIG_STORE_COMPATIBLE
+//#define CONFIG_STORE_COMPATIBLE
 
 #ifdef  CONFIG_STORE_COMPATIBLE
 //spi
@@ -326,8 +326,8 @@
 #elif defined CONFIG_MMC_BOOT
 	#define CONFIG_ENV_IS_IN_MMC
 	#define CONFIG_CMD_SAVEENV
-    #define CONFIG_SYS_MMC_ENV_DEV        0	
-	#define CONFIG_ENV_OFFSET       0x1000000		
+	#define CONFIG_SYS_MMC_ENV_DEV        0	
+	#define CONFIG_ENV_OFFSET       0x7C000	
 #else
 	#define CONFIG_ENV_IS_NOWHERE    1
 #endif
