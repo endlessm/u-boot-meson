@@ -27,6 +27,7 @@ LIB	= $(obj)lib$(BOARD).o
 
 #CSRCS	:= $(wildcard *.c */*.c)
 CSRCS	:= $(wildcard *.c) firmware/uartpin.c
+CSRCS	:= $(subst firmware/timming.c,,$(CSRCS))
 COBJS	:= $(CSRCS:%.c=%.o)
 
 SRCS	:= $(COBJS:.o=.c)

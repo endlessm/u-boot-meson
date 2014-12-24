@@ -104,9 +104,9 @@ static int get_off_size(int argc, char *argv[],  loff_t *off, loff_t *size)
 	return 0;
 }
 
-int do_store(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
+int do_store(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
-	int i, init_flag=0,dev, ret = 0;
+	int i, init_flag=0, ret = 0;
 	uint64_t addr;	
 	loff_t off=0, size=0;	
 	char *cmd, *s, *area;
@@ -123,7 +123,7 @@ int do_store(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		area = argv[2];
 		
 		if(strcmp(area, "boot") == 0){
-			if(POR_NAND_BOOT()){
+			if(device_boot_flag == NAND_BOOT_FLAG){
 				off =  simple_strtoul(argv[3], NULL, 16);
 				size =  simple_strtoul(argv[4], NULL, 16);
 				store_dbg("NAND BOOT,erase uboot : %s %d  off =%llx ,size=%llx",__func__,__LINE__, off, size);
@@ -134,7 +134,7 @@ int do_store(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 					return -1;
 				}
 				return ret;
-			}else if(POR_SPI_BOOT()){
+			}else if((device_boot_flag==SPI_EMMC_FLAG)||(device_boot_flag==SPI_NAND_FLAG)){
 				off =  simple_strtoul(argv[3], NULL, 16);
 				size =  simple_strtoul(argv[4], NULL, 16);
 
@@ -152,7 +152,7 @@ int do_store(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 					return -1;
 				}
 				return ret;
-			}else if(POR_EMMC_BOOT()){
+			}else if(device_boot_flag == EMMC_BOOT_FLAG){
 				off =  simple_strtoul(argv[3], NULL, 16);
 				size =  simple_strtoul(argv[4], NULL, 16);
 
@@ -212,7 +212,7 @@ E_SWITCH_BACK:
 		}
 		else if(strcmp(area, "data") == 0){
 			
-			if(POR_NAND_BOOT()){
+			if(device_boot_flag==NAND_BOOT_FLAG){
 				store_dbg("NAND BOOT,erase data : %s %d  off =%llx ,size=%llx",__func__,__LINE__, off, size);
 
 				ret = run_command("amlnf  deverase data 0",0);
@@ -233,10 +233,7 @@ E_SWITCH_BACK:
 				}
 				return ret;
 			}
-			else if(POR_SPI_BOOT()){
-				store_dbg("SPI BOOT,erase data : %s %d  off =%llx ,size=%llx",__func__,__LINE__, off, size);
-
-				if(device_boot_flag == SPI_NAND_FLAG){		
+			else if(device_boot_flag == SPI_NAND_FLAG){		
 					store_dbg("spi+nand , %s %d ",__func__,__LINE__);
 					ret = run_command("amlnf  deverase data 0",0);
 					if(ret != 0){
@@ -254,23 +251,23 @@ E_SWITCH_BACK:
 						store_msg("nand cmd %s failed ",cmd);
 						return -1;
 					}
-				}
-				if(device_boot_flag == SPI_EMMC_FLAG){
-					store_dbg("spi+mmc , %s %d ",__func__,__LINE__);
-					off = size =0;
-					ret = run_command("mmc  erase  1",0); // whole
-					if(ret != 0){
-						store_msg("mmc cmd %s failed ",cmd);
-						return -1;
-					}
+					return ret;
+			}
+			else if(device_boot_flag == SPI_EMMC_FLAG){
+				store_dbg("spi+mmc , %s %d ",__func__,__LINE__);
+				off = size =0;
+				ret = run_command("mmc  erase  1",0); // whole
+				if(ret != 0){
+					store_msg("mmc cmd %s failed ",cmd);
+					return -1;
 				}
 
 				return ret;
 			} 
-			else if(POR_EMMC_BOOT()){
+			else if(device_boot_flag==EMMC_BOOT_FLAG){
 				store_dbg("MMC BOOT,erase data : %s %d  off =%llx ,size=%llx",__func__,__LINE__, off, size);
 				off = size =0;
-				ret = run_command("mmc erase  1",0); //whole
+				ret = run_command("mmc erase 1",0); //whole
 				if(ret != 0){
 					store_msg("mmc cmd %s failed ",cmd);
 					return -1;
@@ -292,11 +289,11 @@ E_SWITCH_BACK:
 		
 		s = argv[2];	
 		addr = (ulong)simple_strtoul(argv[3], NULL, 16);
-		if (get_off_size(argc - 4, argv + 4, &off, &size) != 0)
+		if (get_off_size(argc - 4, (char **)(argv + 4), &off, &size) != 0)
 			goto usage;
 		
 		store_dbg("addr = %llx off= 0x%llx  size=0x%llx",addr,off,size);
-		if((POR_NAND_BOOT())){	
+		if((device_boot_flag==NAND_BOOT_FLAG)){	
 			sprintf(str, "amlnf  read_byte %s 0x%llx  0x%llx  0x%llx",s, addr, off, size);
 			store_dbg("command:	%s", str);
 			ret = run_command(str, 0);
@@ -305,8 +302,8 @@ E_SWITCH_BACK:
 				return -1;
 			}
 			return ret;
-		}else if((POR_SPI_BOOT())){
-			if(device_boot_flag == SPI_NAND_FLAG){
+		}
+		else if(device_boot_flag == SPI_NAND_FLAG){
 				sprintf(str, "amlnf  read_byte %s 0x%llx  0x%llx  0x%llx", s, addr, off, size);
 				store_dbg("command:	%s\n", str);
 				ret = run_command(str, 0);
@@ -314,20 +311,20 @@ E_SWITCH_BACK:
 					store_msg("nand cmd %s failed \n",cmd);
 					return -1;
 				}
-			}
-			if(device_boot_flag == SPI_EMMC_FLAG){
-				store_dbg("spi+mmc , %s %d ",__func__,__LINE__);
-				sprintf(str, "mmc  read %s 0x%llx  0x%llx  0x%llx", s, addr, off, size);
-				store_dbg("command:	%s\n", str);
-				ret = run_command(str, 0);
-				if(ret != 0){
-					store_msg("mmc cmd %s failed \n",cmd);
-					return -1;
-				}
+				return ret;
+		}
+		else if(device_boot_flag == SPI_EMMC_FLAG){
+			store_dbg("spi+mmc , %s %d ",__func__,__LINE__);
+			sprintf(str, "mmc  read %s 0x%llx  0x%llx  0x%llx", s, addr, off, size);
+			store_dbg("command:	%s\n", str);
+			ret = run_command(str, 0);
+			if(ret != 0){
+				store_msg("mmc cmd %s failed \n",cmd);
+				return -1;
 			}
 			return ret;
 		}
-		else if(POR_EMMC_BOOT()) {
+		else if(device_boot_flag==EMMC_BOOT_FLAG) {
 			store_dbg("MMC BOOT, %s %d \n",__func__,__LINE__);
 			sprintf(str, "mmc  read %s 0x%llx  0x%llx  0x%llx", s, addr, off, size);
 			store_dbg("command:	%s\n", str);
@@ -348,9 +345,9 @@ E_SWITCH_BACK:
 			goto usage;
 		s = argv[2];	
 		addr = (ulong)simple_strtoul(argv[3], NULL, 16);
-		if (get_off_size(argc - 4, argv + 4, &off, &size) != 0)
+		if (get_off_size(argc - 4, (char **)(argv + 4), &off, &size) != 0)
 			goto usage;
-		if((POR_NAND_BOOT())){	
+		if(device_boot_flag==NAND_BOOT_FLAG){	
 
 			sprintf(str, "amlnf  write_byte %s 0x%llx  0x%llx  0x%llx", s, addr, off, size);
 			store_dbg("command:	%s", str);
@@ -359,8 +356,9 @@ E_SWITCH_BACK:
 				store_msg("nand cmd %s failed ",cmd);
 				return -1;
 			}
-		}else if((POR_SPI_BOOT())){
-			if(device_boot_flag == SPI_NAND_FLAG){
+			return ret;
+		}
+		else if(device_boot_flag == SPI_NAND_FLAG){
 				store_dbg("spi+nand , %s %d ",__func__,__LINE__);
 				sprintf(str, "amlnf  write_byte %s 0x%llx  0x%llx  0x%llx", s, addr, off, size);
 				store_dbg("command:	%s", str);
@@ -369,19 +367,20 @@ E_SWITCH_BACK:
 					store_msg("nand cmd %s failed \n",cmd);
 					return -1;
 				}
-			}
-			if(device_boot_flag == SPI_EMMC_FLAG){
-				store_dbg("spi+mmc , %s %d ",__func__,__LINE__);
-				sprintf(str, "mmc  write %s 0x%llx  0x%llx  0x%llx", s, addr, off, size);
-				store_dbg("command: %s\n", str);
-				ret = run_command(str, 0);
-				if(ret != 0){
-					store_msg("mmc cmd %s failed \n",cmd);
-					return -1;
-				}
-			}
+				return ret;
 		}
-		else if(POR_EMMC_BOOT())  {
+		else if(device_boot_flag == SPI_EMMC_FLAG){
+			store_dbg("spi+mmc , %s %d ",__func__,__LINE__);
+			sprintf(str, "mmc  write %s 0x%llx  0x%llx  0x%llx", s, addr, off, size);
+			store_dbg("command: %s\n", str);
+			ret = run_command(str, 0);
+			if(ret != 0){
+				store_msg("mmc cmd %s failed \n",cmd);
+				return -1;
+			}
+			return ret;
+		}
+		else if(device_boot_flag==EMMC_BOOT_FLAG){
 			store_dbg("MMC BOOT, %s %d \n",__func__,__LINE__);
 			sprintf(str, "mmc  write %s 0x%llx  0x%llx  0x%llx", s, addr, off, size);
 			store_dbg("command: %s\n", str);
@@ -401,9 +400,9 @@ E_SWITCH_BACK:
 		if (argc < 5)
 			goto usage;
 		addr = (ulong)simple_strtoul(argv[2], NULL, 16);
-		if (get_off_size(argc - 3, argv + 3, &off, &size) != 0)
+		if (get_off_size(argc - 3, (char **)(argv + 3), &off, &size) != 0)
 			goto usage;
-		if(POR_NAND_BOOT()){
+		if(device_boot_flag==NAND_BOOT_FLAG){
 			sprintf(str, "amlnf  rom_write  0x%llx  0x%llx  0x%llx",  addr, off, size);
 			store_dbg("command:	%s", str);
 			ret = run_command(str, 0);
@@ -412,7 +411,8 @@ E_SWITCH_BACK:
 				return -1;
 			}
 			return ret;
-		}else if (POR_SPI_BOOT()){
+		}
+		else if ((device_boot_flag==SPI_EMMC_FLAG)||(device_boot_flag==SPI_NAND_FLAG)){
 			ret = run_command("sf  probe 2",0);
 			if(ret != 0){
 				store_msg("nand cmd %s failed",cmd);
@@ -433,9 +433,9 @@ E_SWITCH_BACK:
 			}
 			return ret;
 		}
-		else if(POR_EMMC_BOOT()){
+		else if(device_boot_flag==EMMC_BOOT_FLAG){
 			store_dbg("MMC BOOT, %s %d \n",__func__,__LINE__);
-			tmp_buf= (unsigned char *)addr;
+			tmp_buf= (unsigned char *)(int)addr;
 #ifndef CONFIG_AML_SECU_BOOT_V2
             #ifdef MMC_UBOOT_CLEAR_MBR
 			//modify the 55 AA info for emmc uboot
@@ -503,9 +503,9 @@ W_SWITCH_BACK:
 		if (argc < 5)
 			goto usage;
 		addr = (ulong)simple_strtoul(argv[2], NULL, 16);
-		if (get_off_size(argc - 3, argv + 3, &off, &size) != 0)
+		if (get_off_size(argc - 3, (char **)(argv + 3), &off, &size) != 0)
 			goto usage;
-		if(POR_NAND_BOOT()){
+		if(device_boot_flag==NAND_BOOT_FLAG){
 			sprintf(str, "amlnf  rom_read  0x%llx  0x%llx  0x%llx",  addr, off, size);
 			store_dbg("command:	%s", str);
 			ret = run_command(str, 0);
@@ -514,7 +514,7 @@ W_SWITCH_BACK:
 				return -1;
 			}
 			return ret;
-		}else if (POR_SPI_BOOT()){
+		}else if ((device_boot_flag==SPI_EMMC_FLAG)||(device_boot_flag==SPI_NAND_FLAG)){
 			ret = run_command("sf  probe 2",0);
 			if(ret != 0){
 				return -1;
@@ -527,11 +527,11 @@ W_SWITCH_BACK:
 				return -1;
 			}
 			return ret;
-		}else if (POR_EMMC_BOOT()){
+		}else if (device_boot_flag==EMMC_BOOT_FLAG){
 			store_dbg("MMC BOOT, %s %d \n",__func__,__LINE__);
 			sprintf(str, "mmc  read bootloader 0x%llx  0x%llx  0x%llx", addr, off, size);
 			store_dbg("command: %s\n", str);
-			tmp_buf= (unsigned char *)addr;
+			tmp_buf= (unsigned char *)(int)addr;
 			ret = run_command(str, 0);
 			if(ret != 0){
 				store_msg("mmc cmd %s failed \n",cmd);
@@ -595,7 +595,7 @@ R_SWITCH_BACK:
 			goto usage;
 		
 		area = argv[2];
-		if(POR_NAND_BOOT()){	
+		if(device_boot_flag==NAND_BOOT_FLAG){	
 			sprintf(str, "amlnf  rom_protect  %s", area);
 			store_dbg("command:	%s", str);
 			ret = run_command(str, 0);
@@ -608,15 +608,15 @@ R_SWITCH_BACK:
 	}
 	else if (strcmp(cmd, "scrub") == 0){	
 		off = (ulong)simple_strtoul(argv[2], NULL, 16);
-		sprintf(str, "amlnf  scrub %d", off);
-		if((POR_NAND_BOOT()) ){	
+		sprintf(str, "amlnf  scrub %d", (int)off);
+		if(device_boot_flag==NAND_BOOT_FLAG){	
 			ret = run_command(str, 0);
 			if(ret != 0){
 				store_msg("nand cmd %s failed",cmd);
 				return -1;
 			}
-		}else if(POR_SPI_BOOT()){
-			if(device_boot_flag == SPI_NAND_FLAG){
+		}
+		else if(device_boot_flag == SPI_NAND_FLAG){
 				store_dbg("spi+nand , %s %d ",__func__,__LINE__);
 				ret = run_command(str, 0);
 				if(ret != 0){
@@ -634,16 +634,18 @@ R_SWITCH_BACK:
 					store_msg("nand cmd %s failed",cmd);
 					return -1;
 				}
-			}
-			if(device_boot_flag == SPI_EMMC_FLAG){
+				return ret;
+		}
+		else if(device_boot_flag == SPI_EMMC_FLAG){
 				store_dbg("spi+mmc , %s %d ",__func__,__LINE__);
 				ret = run_command("mmc erase whole",0);
 				if(ret != 0){
 					store_msg("mmc cmd %s failed \n",cmd);
 					return -1;
 				}
-			}
-		}else if(POR_EMMC_BOOT()){
+				return ret;
+		}
+		else if(device_boot_flag==EMMC_BOOT_FLAG){
 			store_dbg("MMC BOOT, %s %d \n",__func__,__LINE__);
             device_boot_flag = EMMC_BOOT_FLAG;		
 			ret = run_command("mmcinfo 1", 0);
@@ -664,7 +666,7 @@ R_SWITCH_BACK:
 		
 		init_flag = (argc > 2) ? (int)simple_strtoul(argv[2], NULL, 16) : 0;
 		store_dbg("init_flag %d",init_flag);
-		if(POR_NAND_BOOT()){	
+		if(device_boot_flag==NAND_BOOT_FLAG){	
 			sprintf(str, "amlnf  init  %d ",init_flag);
 			printf("command:	%s\n", str);
                         device_boot_flag = NAND_BOOT_FLAG;		
@@ -682,7 +684,7 @@ R_SWITCH_BACK:
 			}
 			return ret;
 		}
-        else if(POR_SPI_BOOT())
+        else if((device_boot_flag==SPI_EMMC_FLAG)||(device_boot_flag==SPI_NAND_FLAG))
         {
 			if(device_boot_flag == -1)
             {
@@ -772,7 +774,7 @@ R_SWITCH_BACK:
 			
 			return ret;
         }
-        else if(POR_EMMC_BOOT()){
+        else if(device_boot_flag == EMMC_BOOT_FLAG){
                 store_dbg("MMC BOOT, %s %d \n",__func__,__LINE__);
                 device_boot_flag = EMMC_BOOT_FLAG;		
                 ret = run_command("mmcinfo 1", 0);
@@ -804,7 +806,7 @@ R_SWITCH_BACK:
 		
 		s = argv[2];
 		addr = (ulong)simple_strtoul(argv[3], NULL, 16);
-		if(POR_NAND_BOOT()){	
+		if(device_boot_flag==NAND_BOOT_FLAG){	
 			sprintf(str, "amlnf  size  %s %llx",s,addr);
 			store_dbg("command:	%s", str);
 			ret = run_command(str, 0);
@@ -813,8 +815,8 @@ R_SWITCH_BACK:
 				return -1;
 			}
 			return ret;
-		}else if(POR_SPI_BOOT()){
-			if(device_boot_flag == SPI_NAND_FLAG){
+		}
+		else if(device_boot_flag == SPI_NAND_FLAG){
 				sprintf(str, "amlnf  size  %s %llx",s,addr);
 				store_dbg("command:	%s", str);
 				ret = run_command(str, 0);
@@ -822,8 +824,9 @@ R_SWITCH_BACK:
 					store_msg("nand cmd %s failed",cmd);
 					return -1;
 				}
-			}
-			if(device_boot_flag == SPI_EMMC_FLAG){
+				return ret;
+		}
+		else if(device_boot_flag == SPI_EMMC_FLAG){
 				store_dbg("MMC , %s %d ",__func__,__LINE__);
 				sprintf(str, "mmc  size  %s %llx",s,addr);
 				store_dbg("command:	%s", str);
@@ -832,10 +835,9 @@ R_SWITCH_BACK:
 					store_msg("mmc cmd %s failed",cmd);
 					return -1;
 				}
-			}
-			return ret;
+				return ret;
 		}
-		else if(POR_EMMC_BOOT()){
+		else if(device_boot_flag==EMMC_BOOT_FLAG){
 			store_dbg("MMC , %s %d ",__func__,__LINE__);
 			sprintf(str, "mmc  size  %s %llx",s,addr);
 			store_dbg("command:	%s", str);
@@ -846,7 +848,7 @@ R_SWITCH_BACK:
 			}
 			return ret;
 		}
-		else if(POR_CARD_BOOT()){
+		else if(device_boot_flag==CARD_BOOT_FLAG){
 			store_dbg("CARD BOOT , %s %d ",__func__,__LINE__);
 			return 0;
 		}
@@ -874,7 +876,7 @@ R_SWITCH_BACK:
 	}
 	else if(strcmp(cmd, "exit") == 0){
 		
-		if(POR_NAND_BOOT()){	
+		if(device_boot_flag == NAND_BOOT_FLAG){	
 			ret = run_command("amlnf exit", 0);
 			if(ret != 0){
 				store_msg("nand cmd %s failed",cmd);

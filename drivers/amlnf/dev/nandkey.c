@@ -18,7 +18,11 @@
 #include <linux/amlogic/securitykey.h>
 #endif
 
-#define KEYSIZE (CONFIG_KEYSIZE - (sizeof(uint32_t)))
+extern int amlnand_read_info_by_name(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * buf,unsigned char * name,unsigned size);
+extern int amlnand_save_info_by_name(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * buf,unsigned char * name,unsigned size);
+extern int amlnand_info_init(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * buf,unsigned char *name,unsigned size);
+
+//#define KEYSIZE (CONFIG_KEYSIZE - (sizeof(uint32_t)))
 
 static struct amlnand_chip *aml_chip_key = NULL;
 
@@ -35,7 +39,7 @@ static struct amlnand_chip *aml_chip_key = NULL;
 		if(key_buf == NULL)
 			return -ENOMEM;
 		memset(key_buf,0,CONFIG_KEYSIZE);
-		ret = amlnand_read_info_by_name(aml_chip, &(aml_chip->nand_key),key_buf,KEY_INFO_HEAD_MAGIC, CONFIG_KEYSIZE);
+		ret = amlnand_read_info_by_name(aml_chip, (unsigned char *)&(aml_chip->nand_key),(unsigned char *)key_buf,(unsigned char *)KEY_INFO_HEAD_MAGIC, CONFIG_KEYSIZE);
 		if (ret) {
 			aml_nand_msg("read key error,%s\n",__func__);
 			ret = -EFAULT;
@@ -48,7 +52,7 @@ static struct amlnand_chip *aml_chip_key = NULL;
 	aml_nand_msg("aml_chip->nand_key : arg_type%d valid %d,update_flag %d,valid_blk_addr %d,valid_page_addr %d",aml_chip->nand_key.arg_type,aml_chip->nand_key.arg_valid,\
 		aml_chip->nand_key.update_flag,aml_chip->nand_key.valid_blk_addr,aml_chip->nand_key.valid_page_addr);
 	
-	ret = amlnand_save_info_by_name( aml_chip,&(aml_chip->nand_key),key_buf, KEY_INFO_HEAD_MAGIC,CONFIG_KEYSIZE);
+	ret = amlnand_save_info_by_name( aml_chip,(unsigned char *)&(aml_chip->nand_key),(unsigned char *)key_buf, (unsigned char *)KEY_INFO_HEAD_MAGIC,CONFIG_KEYSIZE);
 	if(ret < 0){
 		aml_nand_msg("aml_nand_update_key : save key info failed");
 	}
@@ -69,7 +73,8 @@ static int32_t nand_key_read(aml_keybox_provider_t * provider, uint8_t *buf,int 
 {
 	struct amlnand_chip * aml_chip = provider->priv;
 	meson_key *key_ptr = NULL;
-	int error = 0,i=0;
+	//int error = 0,i=0;
+	int error = 0;
 	if(len > KEYSIZE)
 	{
 		printk("key data len too much,%s\n",__func__);
@@ -80,7 +85,7 @@ static int32_t nand_key_read(aml_keybox_provider_t * provider, uint8_t *buf,int 
 		return -ENOMEM;
 	memset(key_ptr,0,CONFIG_KEYSIZE);
 
-	error = amlnand_read_info_by_name(aml_chip, &(aml_chip->nand_key),key_ptr,KEY_INFO_HEAD_MAGIC, CONFIG_KEYSIZE);
+	error = amlnand_read_info_by_name(aml_chip, (unsigned char *)&(aml_chip->nand_key),(unsigned char *)key_ptr,(unsigned char *)KEY_INFO_HEAD_MAGIC, CONFIG_KEYSIZE);
 	//error = aml_nand_read_key(aml_chip, (u_char *)key_ptr);
 	if (error) 
 	{
@@ -99,7 +104,8 @@ static int32_t nand_key_write(aml_keybox_provider_t * provider, uint8_t *buf,int
 {
 	struct amlnand_chip * aml_chip = provider->priv;
 	meson_key *key_ptr = NULL;
-	int error = 0,i=0;
+	//int error = 0,i=0;
+	int error = 0;
 
 	if(len > KEYSIZE)
 	{
@@ -112,7 +118,7 @@ static int32_t nand_key_write(aml_keybox_provider_t * provider, uint8_t *buf,int
 	memset(key_ptr,0,CONFIG_KEYSIZE);
 	memcpy(key_ptr->data + 0, buf, len);
 
-	error = amlnand_save_info_by_name(aml_chip, &(aml_chip->nand_key),key_ptr,KEY_INFO_HEAD_MAGIC, CONFIG_KEYSIZE);
+	error = amlnand_save_info_by_name(aml_chip, (unsigned char *)&(aml_chip->nand_key),(unsigned char *)key_ptr,(unsigned char *)KEY_INFO_HEAD_MAGIC, CONFIG_KEYSIZE);
 	if (error) 
 	{
 		printk("save key error,%s\n",__func__);
@@ -145,7 +151,7 @@ int aml_key_init(struct amlnand_chip *aml_chip)
 	memset(key_ptr,0x0,CONFIG_KEYSIZE);
 	aml_nand_dbg("nand key: nand_key_probe. ");
 
-	ret = amlnand_info_init(aml_chip, &(aml_chip->nand_key),key_ptr,KEY_INFO_HEAD_MAGIC, CONFIG_KEYSIZE);
+	ret = amlnand_info_init(aml_chip, (unsigned char *)&(aml_chip->nand_key),(unsigned char *)key_ptr,(unsigned char *)KEY_INFO_HEAD_MAGIC, CONFIG_KEYSIZE);
 	if(ret < 0){
 		aml_nand_msg("invalid nand key\n");
 	}
@@ -171,7 +177,7 @@ exit_error0:
 	return ret;
 }
 #ifdef AML_NAND_UBOOT
-int nandkey_provider_register()
+int nandkey_provider_register(void)
 {
 	int ret = 0;
 #if 0 

@@ -29,6 +29,7 @@
 #include <asm/arch/vinfo.h>
 #include <asm/arch/lcd_reg.h>
 #include <amlogic/lcdoutc.h>
+#include <amlogic/aml_lcd_common.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/timing.h>
 #include "lcd_config.h"
@@ -39,6 +40,22 @@
 
 static Lcd_Config_t *lcd_Conf;
 static unsigned char lcd_gamma_init_err = 0;
+
+#define SS_LEVEL_MAX	5
+static const char *lcd_ss_level_table[]={
+	"0",
+	"0.5%",
+	"1%",
+	"1.5%",
+	"2%",
+};
+
+static const char *edp_link_rate_string_table[]={
+    "1.62Gbps",
+    "2.70Gbps",
+    "5.40Gbps",
+    "invalid",
+};
 
 static void print_lcd_driver_version(void)
 {
@@ -482,11 +499,6 @@ static void vclk_set_lcd(int lcd_type, unsigned long pll_reg, unsigned long vid_
 			WRITE_LCD_CBUS_REG_BITS(HHI_EDP_TX_PHY_CNTL0, edp_div0_sel, 20, 4);	//set edptx_phy_clk_div0
 			WRITE_LCD_CBUS_REG_BITS(HHI_EDP_TX_PHY_CNTL0, edp_div1_sel, 24, 3);	//set edptx_phy_clk_div1
 			WRITE_LCD_CBUS_REG_BITS(HHI_EDP_TX_PHY_CNTL0, 1, 5, 1);	//enable divider N, for vid_pll2_in
-			
-			if (IS_MESON_M8_CPU)
-				WRITE_LCD_CBUS_REG(HHI_EDP_APB_CLK_CNTL, (1 << 7) | (2 << 0));	//fclk_div5---fixed 510M, div to 170M, edp apb clk
-			else if (IS_MESON_M8M2_CPU)
-				WRITE_LCD_CBUS_REG(HHI_EDP_APB_CLK_CNTL_M8M2, (1 << 7) | (2 << 0));	//fclk_div5---fixed 510M, div to 170M, edp apb clk
 			break;
 		case LCD_DIGITAL_LVDS:
 		case LCD_DIGITAL_TTL:
@@ -524,6 +536,9 @@ static void vclk_set_lcd(int lcd_type, unsigned long pll_reg, unsigned long vid_
 	udelay(10);
 	WRITE_LCD_CBUS_REG_BITS(HHI_VIID_CLK_CNTL, 0, 15, 1);  //release soft reset
 	udelay(5);
+	
+	if (IS_MESON_M8M2_CPU)
+		WRITE_LCD_CBUS_REG_BITS(HHI_VID_CLK_CNTL2, 1, 3, 1);	//enable CTS_ENCL clk gate, new added in m8m2
 }
 
 static void clk_util_lvds_set_clk_div(unsigned long divn_sel, unsigned long divn_tcnt, unsigned long div2_en)
@@ -1029,6 +1044,8 @@ static void _disable_lcd_driver(Lcd_Config_t *pConf)
 
     WRITE_LCD_REG(ENCL_VIDEO_EN, 0);	//disable encl
 
+    if (IS_MESON_M8M2_CPU)
+        WRITE_LCD_CBUS_REG_BITS(HHI_VID_CLK_CNTL2, 0, 3, 1);	//disable CTS_ENCL clk gate, new added in m8m2
     WRITE_LCD_CBUS_REG_BITS(HHI_VIID_CLK_CNTL, 0, 0, 5);	//close vclk2 gate: 0x104b[4:0]
 
     WRITE_LCD_CBUS_REG_BITS(HHI_VIID_DIVIDER_CNTL, 0, 16, 1);	//close vid2_pll gate: 0x104c[16]
@@ -1077,11 +1094,11 @@ static void lcd_test(unsigned num)
 		case 4:
 			WRITE_LCD_REG(ENCL_VIDEO_MODE_ADV, 0);
 			WRITE_LCD_REG(ENCL_TST_MDSEL, 0);
-			WRITE_LCD_REG(ENCL_TST_Y, 0x3ff);
+			WRITE_LCD_REG(ENCL_TST_Y, 0x200);
 			WRITE_LCD_REG(ENCL_TST_CB, 0x200);
 			WRITE_LCD_REG(ENCL_TST_CR, 0x200);
 			WRITE_LCD_REG(ENCL_TST_EN, 1);
-			printf("show test pattern 4: White (0: disable test pattern)\n");
+			printf("show test pattern 4: Gray (0: disable test pattern)\n");
 			break;
 		case 5:
 			WRITE_LCD_REG(ENCL_VIDEO_MODE_ADV, 0);
@@ -1123,7 +1140,7 @@ static void print_lcd_clk_info(void)
     printf("vid2 pll clk      %uMHz\n"
            "lvds fifo clk     %uMHz\n"
            "cts encl clk      %uMHz\n\n",
-           clk_util_clk_msr(62), clk_util_clk_msr(24), clk_util_clk_msr(9));
+           (unsigned int)clk_util_clk_msr(62), (unsigned int)clk_util_clk_msr(24), (unsigned int)clk_util_clk_msr(9));
 }
 
 static void lcd_module_enable(void)
@@ -1168,15 +1185,10 @@ static void generate_clk_parameter(Lcd_Config_t *pConf)
     unsigned edp_tx_phy_out;
     unsigned clk_num = 0;
     unsigned tmp;
-    unsigned fin = FIN_FREQ;
-    unsigned fout = pConf->lcd_timing.lcd_clk;
+    unsigned fin, fout;
 
-    if (fout >= 200) {//clk
-        fout = fout / 1000;  //kHz
-    }
-    else {//frame_rate
-        fout = (fout * pConf->lcd_basic.h_period * pConf->lcd_basic.v_period) / 1000;	//kHz
-    }
+    fin = FIN_FREQ; //kHz
+    fout = pConf->lcd_timing.lcd_clk / 1000; //kHz
 
     switch (pConf->lcd_basic.lcd_type) {
         case LCD_DIGITAL_MIPI:
@@ -1579,6 +1591,10 @@ static void lcd_control_config_pre(Lcd_Config_t *pConf)
 {
     unsigned ss_level;
 
+    if (pConf->lcd_timing.lcd_clk < 200) {//prepare refer clock for frame_rate setting
+        pConf->lcd_timing.lcd_clk = (pConf->lcd_timing.lcd_clk * pConf->lcd_basic.h_period * pConf->lcd_basic.v_period);
+    }
+
     ss_level = ((pConf->lcd_timing.clk_ctrl >> CLK_CTRL_SS) & 0xf);
     ss_level = ((ss_level >= SS_LEVEL_MAX) ? (SS_LEVEL_MAX-1) : ss_level);
 
@@ -1588,6 +1604,12 @@ static void lcd_control_config_pre(Lcd_Config_t *pConf)
             set_mipi_dsi_control_config(pConf);
             break;
         case LCD_DIGITAL_EDP:
+            //prepare edp_apb_clk to access edp controller registers
+            if (IS_MESON_M8_CPU)
+                WRITE_LCD_CBUS_REG(HHI_EDP_APB_CLK_CNTL, (1 << 7) | (2 << 0));	//fclk_div5---fixed 510M, div to 170M, edp apb clk
+            else if (IS_MESON_M8M2_CPU)
+                WRITE_LCD_CBUS_REG(HHI_EDP_APB_CLK_CNTL_M8M2, (1 << 7) | (2 << 0));	//fclk_div5---fixed 510M, div to 170M, edp apb clk
+
             ss_level = ((ss_level > 0) ? 1 : 0);
             select_edp_link_config(pConf);
             if (pConf->lcd_control.edp_config->link_adaptive == 1) {

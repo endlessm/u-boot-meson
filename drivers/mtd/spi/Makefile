@@ -42,6 +42,7 @@ COBJS-$(CONFIG_SPI_M95XXX) += eeprom_m95xxx.o
 COBJS-$(CONFIG_SPI_FLASH_GIGADEVICE) += gigadevice.o
 COBJS-$(CONFIG_SPI_FLASH_PMDEVICE) += pmdevice.o
 COBJS-$(CONFIG_SPI_NOR_SECURE_STORAGE) += spi_secure_storage.o
+COBJS-$(CONFIG_SPI_FLASH_ESMT) += esmt.o
 
 COBJS	:= $(COBJS-y)
 SRCS	:= $(COBJS:.o=.c)

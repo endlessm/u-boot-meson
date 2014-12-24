@@ -32,6 +32,9 @@
 /u-boot-onenand.bin
 /u-boot-flexonenand.bin
 /build
+/include/configs/amlogic
+include/configs/customer
+/customer
 
 #
 # Generated files

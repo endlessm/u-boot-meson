@@ -320,6 +320,8 @@ int m8b_pin_map_to_direction(unsigned int pin,unsigned int *reg,unsigned int *bi
 extern struct amlogic_set_pullup pullup_ops;
 extern int gpio_irq;
 extern int gpio_flag;
+extern void *malloc (size_t len);
+extern void free(void*);
 #define NONE 0xffffffff
 //#define debug
 #ifdef debug
@@ -663,7 +665,7 @@ int gpio_amlogic_requst(struct gpio_chip *chip,unsigned offset)
 }
 /* amlogic request gpio interface*/
 
-void	 gpio_amlogic_free(struct gpio_chip *chip,unsigned offset)
+void gpio_amlogic_free(unsigned offset)
 {	
 	return;
 }
@@ -813,7 +815,7 @@ int gpio_amlogic_name_to_num(const char *name)
 
 
 
-static int m8b_set_pullup(unsigned int pin,unsigned int val,unsigned int pullen)
+static int m8b_set_pullup(unsigned pin, int val, unsigned int pullen)
 {
 	unsigned int reg=0,bit=0,bit_en=0,ret;
 	ret=m8b_pin_to_pullup(pin,&reg,&bit,&bit_en);

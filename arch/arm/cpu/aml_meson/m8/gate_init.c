@@ -1,10 +1,26 @@
 #include "power_gate.h"
 #include <asm/arch/io.h>
+#include <common.h>
 
 unsigned char GCLK_ref[GCLK_IDX_MAX];
 
+static int is_sd_format(unsigned char *mode)
+{
+    int i;
+    unsigned char *sd_mode[] = {(unsigned char *)("480I"), (unsigned char *)("480i"), (unsigned char *)("576I"), (unsigned char *)("576i"), (unsigned char *)("480cvbs"), (unsigned char *)("480CVBS"), (unsigned char *)("576cvbs"), (unsigned char *)("576CVBS"), NULL};
+
+    for(i = 0; sd_mode[i]; i++) {
+        if(strncmp((const char *)mode, (const char *)sd_mode[i], strlen((const char *)sd_mode[i])) == 0)
+            return 1;
+    }
+    return 0;
+}
+
 void gate_init(void)
 {
+	unsigned char * disp_mode = (unsigned char *)getenv("outputmode");
+	int i_flag = is_sd_format(disp_mode);
+
 	/* close spi */
 	CLK_GATE_OFF(SPICC);
 	CLK_GATE_OFF(SPI);
@@ -99,10 +115,16 @@ void gate_init(void)
     CLK_GATE_OFF(VCLK2_VENCT);                      // CBUS[0x1054], gate off VCLK2_VENCT
     CLK_GATE_OFF(VCLK2_VENCT1);                     // CBUS[0x1054], gate off VCLK2_VENCT1
     CLK_GATE_OFF(VCLK2_OTHER);                      // CBUS[0x1054], gate off VCLK2_OTHER
+	if(i_flag == 0) {
     CLK_GATE_OFF(VCLK2_ENCI);                       // CBUS[0x1054], gate off VCLK2_ENCI
+	}
     // HDMI no output
 //    CLK_GATE_OFF(VCLK2_ENCP);                       // CBUS[0x1054], gate off VCLK2_ENCP
+
+#ifndef CONFIG_ENABLE_CVBS
     CLK_GATE_OFF(DAC_CLK);                          // CBUS[0x1054], gate off DAC_CLK 
+#endif
+
     CLK_GATE_OFF(AIU_ICE958_AMCLK);                 // CBUS[0x1054], gate off IEC958_GATE
     CLK_GATE_OFF(ENC480P);                          // CBUS[0x1054], gate off ENC480P
     CLK_GATE_OFF(RANDOM_NUM_GEN1);                  // CBUS[0x1054], gate off RANDOM_NUM_GEN1

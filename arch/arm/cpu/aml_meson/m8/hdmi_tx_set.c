@@ -33,6 +33,7 @@
         while(i--);     \
     }while(0)
 
+extern vmode_t vic_to_vmode(HDMI_Video_Codes_t vic);
 static void hdmi_wr_reg(unsigned int addr, unsigned int data);
 static unsigned int hdmi_rd_reg(unsigned int addr);
 static unsigned int modulo(unsigned int a, unsigned int b);
@@ -714,8 +715,8 @@ static void hdmi_tvenc1080i_set(HDMI_Video_Codes_t vic)
 static void hdmi_tvenc4k2k_set(HDMI_Video_Codes_t vic)
 {
     unsigned long VFIFO2VD_TO_HDMI_LATENCY = 2; // Annie 01Sep2011: Change value from 3 to 2, due to video encoder path delay change.
-    unsigned long TOTAL_PIXELS, PIXEL_REPEAT_HDMI, PIXEL_REPEAT_VENC, ACTIVE_PIXELS;
-    unsigned FRONT_PORCH = 1020, HSYNC_PIXELS, ACTIVE_LINES = 2160, INTERLACE_MODE, TOTAL_LINES, SOF_LINES, VSYNC_LINES;
+    unsigned long TOTAL_PIXELS=0, PIXEL_REPEAT_HDMI, PIXEL_REPEAT_VENC, ACTIVE_PIXELS;
+    unsigned FRONT_PORCH = 1020, HSYNC_PIXELS, ACTIVE_LINES = 2160, INTERLACE_MODE, TOTAL_LINES=0, SOF_LINES, VSYNC_LINES;
     unsigned LINES_F0 = 2250, LINES_F1 = 2250,BACK_PORCH, EOF_LINES = 8, TOTAL_FRAMES;
 
     unsigned long total_pixels_venc ;

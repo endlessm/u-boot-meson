@@ -19,6 +19,8 @@
 #include <asm/arch/io.h>
 #include <amlogic/aml_tv.h>
 
+extern void hdmi_tx_set(HDMI_Video_Codes_t vic);
+
 /*
  * Init hdmi power
  */

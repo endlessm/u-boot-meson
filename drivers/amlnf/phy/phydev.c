@@ -38,11 +38,11 @@ static unsigned amlnand_slc_addr_trs(struct amlnand_phydev *phydev)
 	struct nand_flash *flash = &(aml_chip->flash);
 	struct phydev_ops *devops = &(phydev->ops);
 	struct hw_controller *controller = &(aml_chip->controller);	
-	struct chip_operation *operation = &(aml_chip->operation);	
-	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
+	//struct chip_operation *operation = &(aml_chip->operation);	
+	//struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 	struct en_slc_info *slc_info = &(controller->slc_info);
-	int real_page_per_blk, page_per_blk, blk_num, blk_num_in_dev, page_num, ret = 0;
-	uint64_t addr, readlen = 0, len = 0;
+	int real_page_per_blk, page_per_blk, blk_num, blk_num_in_dev, page_num;
+	//uint64_t addr, readlen = 0, len = 0;
 	unsigned real_erase_size, real_erase_shift, page_addr = 0;
 
 	real_erase_size = (phydev->erasesize << 1);
@@ -84,7 +84,7 @@ static void nand_write_verify(struct amlnand_phydev *phydev)
 {
 	struct amlnand_chip *aml_chip = (struct amlnand_chip *)phydev->priv;	
 	struct phydev_ops *devops = &(phydev->ops);
-	struct hw_controller *controller = &(aml_chip->controller);	
+	//struct hw_controller *controller = &(aml_chip->controller);	
 	struct chip_operation *operation = &(aml_chip->operation);	
 	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 
@@ -347,7 +347,7 @@ int nand_erase(struct amlnand_phydev *phydev)
 
 		ret = operation->erase_block(aml_chip);
 		if(ret<0){
-			aml_nand_msg("nand erase fail at addr :%lx ", ops_para->page_addr);
+			aml_nand_msg("nand erase fail at addr :%lx ", (long unsigned int)ops_para->page_addr);
 			break;
 		}
 		
@@ -369,7 +369,7 @@ int nand_erase(struct amlnand_phydev *phydev)
 static int nand_block_isbad(struct amlnand_phydev *phydev)
 {
 	struct amlnand_chip *aml_chip = (struct amlnand_chip *)phydev->priv;	
-	struct nand_flash *flash = &(aml_chip->flash);
+	//struct nand_flash *flash = &(aml_chip->flash);
 	struct phydev_ops *devops = &(phydev->ops);
 	struct hw_controller *controller = &(aml_chip->controller);	
 	struct chip_operation *operation = &(aml_chip->operation);	
@@ -646,7 +646,7 @@ static int aml_repair_bbt(struct amlnand_phydev *phydev,uint64_t *bad_blk_addr,i
 {
 	int i;
 	int error = 0;
-	int flag = 0;
+	//int flag = 0;
 	struct phydev_ops *devops = &(phydev->ops);
 	unsigned char * buffer = NULL;
 	buffer = aml_nand_malloc(2 * phydev->writesize);
@@ -679,7 +679,8 @@ static int aml_repair_bbt(struct amlnand_phydev *phydev,uint64_t *bad_blk_addr,i
 int phydev_init_erase(struct amlnand_chip *aml_chip)
 {
 	int ret =0, percent=0,percent_complete = -1;
-	uint64_t addr, off, size, chipsize, erase_addr, erase_len, erase_off;
+	//uint64_t addr, off, size, chipsize, erase_addr, erase_len, erase_off;
+	uint64_t erase_addr, erase_len, erase_off;
 	struct amlnand_phydev *phydev = NULL;
 	struct phydev_ops  *devops = NULL;
 	if(aml_chip->init_flag == NAND_BOOT_ERASE_PROTECT_CACHE){
@@ -1065,7 +1066,7 @@ ssize_t show_amlnf_version_info(struct class *class, struct class_attribute *att
 #endif
 
 
-static void show_phydev_info()
+static void show_phydev_info(void)
 {
 	struct amlnand_phydev *phydev = NULL;
 	struct amlnf_partition *partition = NULL;
@@ -1472,12 +1473,12 @@ exit_error0:
 }
 
 #ifdef AML_NAND_UBOOT
-void amlnf_phy_exit()
+void amlnf_phy_exit(void)
 {
 
 	struct amlnand_phydev *phydev = NULL;
 	struct amlnand_chip *aml_chip = NULL;
-	struct list_head *entry;
+	//struct list_head *entry;
 	int time= 0;
 	list_for_each_entry(phydev,&nphy_dev_list,list){
 

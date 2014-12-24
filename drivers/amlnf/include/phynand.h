@@ -14,7 +14,7 @@
 #define NAND_COMPATIBLE_REGION     1
 #define NAND_RESERVED_REGION	       1
 #define NAND_ADDNEW_REGION	       1
-#define NAND_BUG_FIX_REGION	       3
+#define NAND_BUG_FIX_REGION	       4
 
 #define DRV_PHY_VERSION	   ((NAND_COMPATIBLE_REGION << 24)+(NAND_RESERVED_REGION << 16) \
 							+(NAND_ADDNEW_REGION << 8)+(NAND_BUG_FIX_REGION))	
@@ -56,7 +56,8 @@ struct nand_page0_info_t{
 	unsigned new_nand_type;
 	unsigned pages_in_block;
 	unsigned secure_block;
-	unsigned reserved[4];
+	unsigned ce_mask;	
+	unsigned reserved[3];
 } ;
 
 typedef union nand_core_clk {
@@ -121,10 +122,10 @@ typedef union nand_core_clk {
 #define 	FBBT_COPY_NUM  						1
 
 #define CONFIG_KEYSIZE         		0x1000
-#define KEYSIZE  (CONFIG_KEYSIZE - 2*(sizeof(uint32_t)))
+#define KEYSIZE  (CONFIG_KEYSIZE - (sizeof(uint32_t)))
 
 #define CONFIG_SECURE_SIZE         		(0x10000*2) //128k
-#define SECURE_SIZE (CONFIG_SECURE_SIZE - 2*(sizeof(uint32_t)))
+#define SECURE_SIZE (CONFIG_SECURE_SIZE - (sizeof(uint32_t)))
 
 #define FULL_BLK     0 
 #define FULL_PAGE  1
@@ -320,6 +321,8 @@ typedef union nand_core_clk {
 #define 	NAND_STATUS_TRUE_READY				0x20
 #define 	NAND_STATUS_READY						0x40
 #define 	NAND_STATUS_WP							0x80
+
+struct hw_controller;
 
 #ifdef NEW_NAND_SUPPORT
 #define 	RETRY_NAND_MAGIC						"refv"
@@ -522,7 +525,8 @@ struct hw_controller{
 	unsigned char (*readbyte)(struct hw_controller *controller);	
 	void (*writebyte)(struct hw_controller *controller, unsigned char data);
 	void	(*cmd_ctrl)(struct hw_controller *controller, unsigned cmd,  unsigned ctrl);
-	int (*quene_rb)(struct hw_controller *controller, unsigned char chipnr);
+	int (*quene_rb)(struct hw_controller *controller, unsigned char chipnr);
+
 	int	(*dma_read)(struct hw_controller *controller, unsigned len, unsigned char bch_mode);		
 	int	(*dma_write)(struct hw_controller *controller, unsigned char *buf, unsigned len, unsigned char bch_mode);
 	int (*hwecc_correct)(struct hw_controller *controller, unsigned size, unsigned char *oob_buf);
@@ -689,6 +693,7 @@ struct amlnand_chip {
 	unsigned char key_protect;
 	unsigned char secure_protect;
 	unsigned char fbbt_protect;
+	unsigned char ce_bit_mask;			/*value used for showing which ce is invalid, 1 means vaild, 0 invalid*/
 	struct hw_controller controller;	
 
 	//current operation parameter, should clear before used.
@@ -737,16 +742,17 @@ extern int amlnand_set_readretry_slc_para(struct amlnand_chip *aml_chip);
 extern int aml_nand_scan_hynix_info(struct amlnand_chip *aml_chip);
 extern int nand_reset(struct amlnand_chip *aml_chip, unsigned char chipnr);
 extern void pinmux_select_chip(unsigned ce_enable, unsigned rb_enable, unsigned flag);
+extern int aml_nand_update_secure(struct amlnand_chip * aml_chip, char *secure_ptr);
 
 
+extern int amlnand_save_info_by_name(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * buf,unsigned char * name,unsigned size);
+extern int amlnand_read_info_by_name(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * buf,unsigned char * name,unsigned size);
+extern int aml_secure_init(struct amlnand_chip *aml_chip);
+extern int amlnand_info_init(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * buf,unsigned char *name,unsigned size);
 #ifndef AML_NAND_UBOOT
 extern  void   nand_get_chip(void *aml_chip);
 extern void  nand_release_chip(void *aml_chip);
 extern int aml_key_init(struct amlnand_chip *aml_chip);
-extern int aml_secure_init(struct amlnand_chip *aml_chip);
-extern int amlnand_info_init(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * buf,unsigned char *name,unsigned size);
 extern int amlnand_check_info_by_name(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * name ,unsigned size);
-extern int amlnand_save_info_by_name(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * buf,unsigned char * name,unsigned size);
-extern int amlnand_read_info_by_name(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * buf,unsigned char * name,unsigned size);
 #endif
 #endif // NAND_H_INCLUDED

@@ -8,6 +8,8 @@
 #include <asm/arch/memtest.h>
 #include <asm/arch/pctl.h>
 
+extern void wait_uart_empty();
+
 #define AML_I2C_CTRL_CLK_DELAY_MASK			0x3ff
 #define AML_I2C_SLAVE_ADDR_MASK				0xff
 #define AML_I2C_SLAVE_ADDR_MASK_7BIT   (0x7F)
@@ -390,7 +392,7 @@ int axp_reads(int reg, int len, uint8_t *val)
             .addr = AXP_I2C_ADDR,
             .flags = 0,
             .len = 1,
-            .buf = &reg,
+            .buf = (__u8 *)&reg,
         },
         {
             .addr = AXP_I2C_ADDR,
@@ -521,7 +523,7 @@ unsigned short i2c_pmu_read_12(unsigned int reg, int size)
             .addr = I2C_AML_PMU_ADDR,
             .flags = I2C_M_RD,
             .len = size,
-            .buf = &val,
+            .buf = (__u8 *)&val,
         }
     };
 
@@ -537,8 +539,8 @@ unsigned short i2c_pmu_read_12(unsigned int reg, int size)
 extern void delay_ms(int ms);
 void init_I2C()
 {
-	unsigned v,speed,reg;
-	struct aml_i2c_reg_ctrl* ctrl;
+	unsigned v,reg;
+	//struct aml_i2c_reg_ctrl* ctrl;
 
 	//1. set pinmux
 	v = readl(P_AO_RTI_PIN_MUX_REG);
@@ -756,8 +758,8 @@ int find_idx(int start, int target, int step, int length)
 
 void axp20_dcdc_voltage(int dcdc, int target) 
 {
-    int idx_to, idx_cur;
-    int addr, val, mask;
+    int idx_to=0, idx_cur;
+    int addr=0, val, mask=0;
     if (dcdc == 2) {
         idx_to = find_idx(700, target, 25, 64);
         addr   = POWER20_DC2OUT_VOL; 
@@ -797,11 +799,13 @@ int ldo4_voltage_table[] = { 1250, 1300, 1400, 1500, 1600, 1700,
 				   1800, 1900, 2000, 2500, 2700, 2800,
 				   3000, 3100, 3200, 3300 };
 
-extern void wait_uart_empty();
 int check_all_regulators(void)
 {
-	int ret = 0;
-	unsigned char reg_data, val;
+	volatile int ret = 0;
+	unsigned char reg_data;
+#if defined(CONFIG_LDO2_VOLTAGE) || defined(CONFIG_LDO4_VOLTAGE) || defined(CONFIG_LDO3_VOLTAGE)
+	unsigned char val;
+#endif
 	
 	f_serial_puts("Check all regulator\n");
 	
@@ -1151,8 +1155,8 @@ unsigned char get_charge_end_det()
 void aml_pmu_set_charger(int en)
 {
     unsigned char reg;
-    unsigned char addr;
-    unsigned char mask;
+    unsigned char addr=0;
+    unsigned char mask=0;
 
     en &= 0x01;
     if (pmu_version <= 2 && pmu_version) {
@@ -1208,7 +1212,7 @@ void aml_pmu_set_voltage(int dcdc, int voltage)
     int idx_to = 0xff;
     int idx_cur;
     unsigned char val;
-    unsigned char addr;
+    unsigned char addr=0;
 
     if (dcdc < 0 || dcdc > AML_PMU_DCDC2 || voltage > 2160 || voltage < 760) {
         return ;                                                // current only support DCDC1&2 voltage adjust
@@ -1216,7 +1220,7 @@ void aml_pmu_set_voltage(int dcdc, int voltage)
     if (dcdc == AML_PMU_DCDC1) {
         addr   = 0x2f; 
         idx_to = find_idx(2000, voltage, 20);                   // voltage index of DCDC1 
-    } else if (dcdc = AML_PMU_DCDC2) {
+    } else if (dcdc == AML_PMU_DCDC2) {
         addr  = 0x38;
         idx_to = find_idx(2160, voltage, 20);                   // voltage index of DCDC2
     }

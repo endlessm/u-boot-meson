@@ -160,9 +160,9 @@ struct pll_clk_settings{
 //#define CFG_SYS_PLL_CNTL_5 (0x00000870)
 
 //SYS PLL	< 2g
-#define CFG_SYS_PLL_CNTL_2 (0x59C88000)
-#define CFG_SYS_PLL_CNTL_3 (0xCA45B823)
-#define CFG_SYS_PLL_CNTL_4 (0x0001D407)
+#define CFG_SYS_PLL_CNTL_2 (0x5ac82000)
+#define CFG_SYS_PLL_CNTL_3 (0x8e452015)
+#define CFG_SYS_PLL_CNTL_4 (0x0001d40c)
 #define CFG_SYS_PLL_CNTL_5 (0x00000870)
 
 //VID PLL > 2.5g

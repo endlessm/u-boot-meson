@@ -44,6 +44,8 @@
  * use globle virable to fast i2c speed
  */
 static unsigned char exit_reason = 0;
+extern void wait_uart_empty(void);
+extern void udelay__(int i);
 
 #ifdef CONFIG_AML1218
 #define AML1218_DCDC1                1
@@ -89,8 +91,6 @@ static void aml_set_reg32_bits(uint32_t _reg, const uint32_t _value, const uint3
 }
 
 #endif  /* CONFIG_AML1218 */
-
-static unsigned char vbus_status;
 
 static int gpio_sel0;
 static int gpio_mask;
@@ -150,7 +150,6 @@ int hard_i2c_wait_complete(void)
 unsigned short hard_i2c_read1616(unsigned char SlaveAddr, unsigned short RegAddr)
 {
     unsigned short data;
-    unsigned int ctrl;
 
     // Set the I2C Address
     (*I2C_SLAVE_ADDR) = ((*I2C_SLAVE_ADDR) & ~0xff) | SlaveAddr;
@@ -268,8 +267,7 @@ extern void delay_ms(int ms);
 
 void init_I2C()
 {
-	unsigned v,speed,reg;
-	struct aml_i2c_reg_ctrl* ctrl;
+	unsigned v,reg;
 
 		//save gpio intr setting
 	gpio_sel0 = readl(0xc8100084);
@@ -404,7 +402,7 @@ int aml1218_set_gpio(int gpio, int val)
     unsigned int data;
 
     if (gpio > 4 || gpio <= 0) {
-        return;    
+        return -1;
     }
 
     data = (1 << (gpio + 11));
@@ -413,7 +411,7 @@ int aml1218_set_gpio(int gpio, int val)
     } else {
         i2c_pmu_write_w(PWR_UP_SW_ENABLE_ADDR, data);    
     }
-    udelay(100);
+    udelay__(100);
     return 0;
 #endif
 }
@@ -447,7 +445,7 @@ void aml_pmu_power_ctrl(int on, int bit_mask)
 {
     unsigned short addr = on ? PWR_UP_SW_ENABLE_ADDR : PWR_DN_SW_ENABLE_ADDR;
     i2c_pmu_write_w(addr, (unsigned short)bit_mask);
-    udelay(100);
+    udelay__(100);
 }
 
 #define power_off_ao18()            aml_pmu_power_ctrl(0, 1 << AML1218_POWER_LDO3_BIT)
@@ -536,7 +534,7 @@ int aml1218_set_dcdc_voltage(int dcdc, int voltage)
     val &= ~0x7e;
     val |= (idx_to << 1);
     i2c_pmu_write_b(addr, val);
-    __udelay(20 * step);
+    udelay__(20 * step);
 
     return 0;
 }
@@ -619,7 +617,7 @@ void aml1218_power_on_at_24M()
         printf_arc("\n");
         power_off_vcc50();
     }
-    udelay__(50 * 1000);
+    udelay__(2 * 1000);
     printf_arc("open boost\n");
     power_on_vcc50();
     udelay__(1000);
@@ -656,7 +654,6 @@ void aml1218_power_on_at_24M()
 void aml1218_power_off_at_32K_1()
 {
     unsigned int reg;                               // change i2c speed to 1KHz under 32KHz cpu clock
-    unsigned int sleep_flag = readl(P_AO_RTI_STATUS_REG2);
 
     reg  = readl(P_AO_I2C_M_0_CONTROL_REG);
     reg &= 0xCFC00FFF;
@@ -688,7 +685,7 @@ void aml1218_power_on_at_32K_1()
     udelay__(10);
 }
 
-aml1218_power_off_at_32K_2()
+void aml1218_power_off_at_32K_2()
 {
        // TODO: add code here
 }
@@ -728,11 +725,13 @@ static int vcck_pwm_on(void)
     
     return 0;
 }
+#if 0
 static int vcck_pwm_off(void)
 {
     aml_set_reg32_bits(P_PWM_MISC_REG_CD, 0, 1, 1);  //disable pwm_d
     return 0;
 }
+#endif
 
 static int pwm_duty_cycle_set(int duty_high,int duty_total)
 {
@@ -744,7 +743,7 @@ static int pwm_duty_cycle_set(int duty_high,int duty_total)
         return -1; 
     }
     aml_write_reg32(P_PWM_PWM_D, (duty_high << 16) | (duty_total-duty_high));
-    __udelay(100000);
+    udelay__(100000);
 
     pwm_reg = aml_read_reg32(P_PWM_PWM_D);
 #if 1
@@ -760,8 +759,8 @@ int m8b_pwm_set_vddEE_voltage(int voltage)
     printf_arc("m8b_pwm_set_vddEE_voltage\n");
     
     int duty_high = 0;
-    int duty_high_tmp = 0;
-    int tmp1,tmp2,tmp3;
+    //int duty_high_tmp = 0;
+    //int tmp1,tmp2,tmp3;
     vcck_pwm_on();
     printf_arc("## VDDEE voltage = 0x");
     serial_put_hex(voltage, 16);
@@ -797,37 +796,39 @@ int m8b_pwm_set_vddEE_voltage(int voltage)
 
 #endif
     pwm_duty_cycle_set(duty_high,28);
-
+    return 0;
 }
 
-void m8b_pwm_power_off_at_24M()
+void m8b_pwm_power_off_at_24M(void)
 {
     m8b_pwm_set_vddEE_voltage(CONFIG_PWM_VDDEE_SUSPEND_VOLTAGE);    
 }
 
-void m8b_pwm_power_on_at_24M()
+void m8b_pwm_power_on_at_24M(void)
 {
     m8b_pwm_set_vddEE_voltage(CONFIG_PWM_VDDEE_VOLTAGE);
 }
     
-void m8b_pwm_power_off_at_32K_1()
+void m8b_pwm_power_off_at_32K_1(void)
 {
     m8b_pwm_set_vddEE_voltage(CONFIG_PWM_VDDEE_SUSPEND_VOLTAGE); 
 }
     
-void m8b_pwm_power_on_at_32K_1()
+void m8b_pwm_power_on_at_32K_1(void)
 {
     m8b_pwm_set_vddEE_voltage(CONFIG_PWM_VDDEE_VOLTAGE);
 }
 #endif 
 unsigned int detect_key(unsigned int flags)
 {
+#ifdef CONFIG_AML1218
     int delay_cnt   = 0;
     int power_status;
     int prev_status;
     int battery_voltage;
-    int ret = FLAG_WAKEUP_PWRKEY;
     int low_bat_cnt = 0;
+#endif
+    int ret = FLAG_WAKEUP_PWRKEY;
 
 #ifdef CONFIG_IR_REMOTE_WAKEUP
     //backup the remote config (on arm)

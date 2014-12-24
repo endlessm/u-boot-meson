@@ -4,7 +4,7 @@
 extern int amlnand_init(unsigned char flag);
 extern void amlchip_dumpinfo(struct amlnand_chip *aml_chip);
 extern void amldev_dumpinfo(struct amlnand_phydev *phydev);
-static int plane_mode = 0;
+//static int plane_mode = 0;
 struct aml_nftl_dev * nftl_device;
 
 //just like memset function but the paraments' type is  little different
@@ -12,7 +12,7 @@ void * memset_nand_test(void * s, unsigned long c,size_t count)
 {
 	unsigned long *sl = (unsigned long *) s;
 	unsigned long cl = 0;
-	char *s8;
+	//char *s8;
 	int i;
 
 	/* do it one word at a time (32 bits or 64 bits) while possible */
@@ -37,13 +37,13 @@ void * memset_nand_test(void * s, unsigned long c,size_t count)
 }
 static int nand_erase_ops_test(struct amlnand_phydev *phydev, uint64_t off, uint64_t len)
 {
-	struct amlnand_chip *aml_chip = phydev->priv;	
+	//struct amlnand_chip *aml_chip = phydev->priv;	
 	struct phydev_ops *devops = &(phydev->ops);
-	struct hw_controller *controller = &(aml_chip->controller); 
-	struct chip_operation *operation = &(aml_chip->operation);	
-	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
+	//struct hw_controller *controller = &(aml_chip->controller); 
+	//struct chip_operation *operation = &(aml_chip->operation);	
+	//struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 
-	uint64_t addr, erase_addr, erase_len, erase_off;
+	uint64_t erase_addr, erase_len, erase_off;
 	int ret = 0;
 	
 	erase_addr = erase_off = off;
@@ -71,7 +71,7 @@ static int nand_erase_ops_test(struct amlnand_phydev *phydev, uint64_t off, uint
 			aml_nand_msg("nand get bad block failed: ret=%d at addr=%llx",ret, erase_addr);
 			ret =  -NAND_ERASE_FAILED;
 		}
-		
+		extern int nand_erase(struct amlnand_phydev *phydev);
 		ret = nand_erase(phydev);
 		if (ret < 0){
 			aml_nand_msg("nand Erase failure: %d %llx", ret, erase_addr);
@@ -87,7 +87,7 @@ exit_error:
 
 static int nand_read_ops_test(struct amlnand_phydev *phydev,uint64_t off , uint64_t len , unsigned char * dat_buf)
 {
-	struct amlnand_chip *aml_chip =phydev->priv;	
+	//struct amlnand_chip *aml_chip =phydev->priv;	
 	struct phydev_ops *devops = &(phydev->ops);
 	uint64_t offset , write_len;
 	unsigned char * buffer = NULL;
@@ -157,9 +157,10 @@ exit_error:
 
 	return ret;
 }
+#if 0
 static int nand_read_oob_ops_test(struct amlnand_phydev *phydev,uint64_t off , uint64_t len , unsigned char * dat_buf)
 {
-	struct amlnand_chip *aml_chip =phydev->priv;	
+	//struct amlnand_chip *aml_chip =phydev->priv;	
 	struct phydev_ops *devops = &(phydev->ops);
 	uint64_t offset , write_len;
 	unsigned char * buffer = NULL;
@@ -229,10 +230,11 @@ exit_error:
 
 	return ret;
 }
+#endif
 
 static int nand_write_ops_test(struct amlnand_phydev *phydev , uint64_t off, uint64_t len, unsigned char * dat_buf, int flag)
 {	
-	struct amlnand_chip *aml_chip = phydev->priv;	
+	//struct amlnand_chip *aml_chip = phydev->priv;	
 	struct phydev_ops *devops = &(phydev->ops);
 	unsigned char * verify_buf =NULL;
 	unsigned char * buffer = NULL;
@@ -327,16 +329,16 @@ exit_error:
 	return ret;
 }
 //nand_test  4 write and read  every block test
-static int amlnand_test4()
+static int amlnand_test4(void)
 {
     struct amlnand_phydev *phydev = NULL;
     struct amlnand_chip *aml_chip;
     struct phydev_ops  *devops;
 
-    int ret =0, i = 0,j = 0, verify_lag  =0;
+    int ret =0, j = 0, verify_lag  =0;
     unsigned char * data_buf = NULL;
     uint64_t offset = 0 , write_len = 0,read_len=0;
-    uint64_t addr, off, size, chipsize, erase_addr, erase_len, erase_off;
+    uint64_t erase_len, erase_off;
     
     list_for_each_entry(phydev,&nphy_dev_list,list){
         data_buf = aml_nand_malloc( phydev->writesize);
@@ -398,16 +400,16 @@ exit_0:
     
 }
 
-static int amlnand_test3()
+static int amlnand_test3(void)
 {
     struct amlnand_phydev *phydev = NULL;
     struct amlnand_chip *aml_chip;
     struct phydev_ops  *devops;
 
-    int ret =0,j = 0, verify_lag  =0;
+    int ret =0, verify_lag  =0;
     unsigned char * data_buf = NULL;
     uint64_t offset = 0 , write_len = 0,read_len=0, i = 0;
-    uint64_t addr, off, size, chipsize, erase_addr, erase_len, erase_off;
+    uint64_t erase_len, erase_off;
     
     list_for_each_entry(phydev,&nphy_dev_list,list){
         data_buf = aml_nand_malloc( phydev->writesize);
@@ -474,17 +476,17 @@ exit_0:
 }
 
 //nand_test  2 Endurance test  
-static int amlnand_test2()
+static int amlnand_test2(void)
 {
     struct amlnand_phydev *phydev = NULL;
     struct amlnand_chip *aml_chip;
     struct phydev_ops  *devops;
 
-    int ret =0, i = 0,j = 0, verify_lag  =0;
+    int ret =0, j = 0, verify_lag  =0;
     unsigned char * data_buf = NULL;
     uint64_t offset = 0 , write_len = 0,read_len=0;
-    uint64_t addr, off, size, chipsize, erase_addr, erase_len, erase_off;
-    int read_times  = 1000;
+    uint64_t erase_len, erase_off;
+    //int read_times  = 1000;
     
     list_for_each_entry(phydev,&nphy_dev_list,list){
         data_buf = aml_nand_malloc( phydev->writesize);
@@ -559,7 +561,7 @@ static int amlnand_test1(void)
 	int ret =0, i = 0, verify_lag  =0;
 	unsigned char * data_buf = NULL;
 	uint64_t offset = 0 , write_len = 0,read_len=0;
-	uint64_t addr, off, size, chipsize, erase_addr, erase_len, erase_off;
+	uint64_t erase_len, erase_off;
 	int read_times  = 10000;
 	
 	list_for_each_entry(phydev,&nphy_dev_list,list){
@@ -642,10 +644,10 @@ static int amlnand_test0(void)
 	struct amlnand_chip *aml_chip;
 	struct phydev_ops  *devops;
 
-	int ret =0, i = 0, verify_lag  =0;
+	int ret =0, verify_lag  =0;
 	unsigned char * data_buf = NULL;
 	uint64_t offset = 0 , write_len = 0,read_len=0;
-	uint64_t addr, off, size, chipsize, erase_addr, erase_len, erase_off;
+	uint64_t erase_len, erase_off;
 
 	list_for_each_entry(phydev,&nphy_dev_list,list){
 
@@ -720,12 +722,12 @@ exit_0:
 }
 
 
-int do_amlnand_test(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
+int do_amlnand_test(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
-	int i, ret = 0;
-	ulong addr;
-	ulong data_write;
-	loff_t off, size;
+	int ret = 0;
+	//ulong addr;
+	//ulong data_write;
+	//loff_t off, size;
 	char *cmd;
 
 	if (argc < 2){

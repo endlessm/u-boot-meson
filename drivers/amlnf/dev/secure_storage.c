@@ -3,7 +3,6 @@
 
 
 //#define SECURE_SIZE  (CONFIG_SECURE_SIZE - (sizeof(uint32_t)))
-
 struct amlnand_chip *aml_chip_secure = NULL;
 
 
@@ -11,7 +10,7 @@ int aml_nand_update_secure(struct amlnand_chip * aml_chip, char *secure_ptr)
 {
 	int ret = 0;
 	char malloc_flag = 0;
-	char *secure_buf = NULL;
+	unsigned char *secure_buf = NULL;
 	
 	if(secure_buf == NULL){
 		
@@ -19,7 +18,7 @@ int aml_nand_update_secure(struct amlnand_chip * aml_chip, char *secure_ptr)
 		if(secure_buf == NULL)
 			return -ENOMEM;
 		memset(secure_buf,0,CONFIG_SECURE_SIZE);
-		ret = amlnand_read_info_by_name(aml_chip, &(aml_chip->nand_secure),secure_buf,SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
+		ret = amlnand_read_info_by_name(aml_chip, (unsigned char *)(&aml_chip->nand_secure),secure_buf,(unsigned char *)SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
 		if (ret) 
 		{
 			aml_nand_msg("read key error,%s\n",__func__);
@@ -27,10 +26,10 @@ int aml_nand_update_secure(struct amlnand_chip * aml_chip, char *secure_ptr)
 			goto exit;
 		}
 	}else{
-		secure_buf = secure_ptr;
+		secure_buf = (unsigned char *)secure_ptr;
 	}
 	
-	ret = amlnand_save_info_by_name(aml_chip, &(aml_chip->nand_secure), secure_buf, SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
+	ret = amlnand_save_info_by_name(aml_chip, (unsigned char *)(&aml_chip->nand_secure), secure_buf, (unsigned char *)SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
 	if(ret < 0){
 		aml_nand_msg("aml_nand_update_secure : update secure failed");
 	}
@@ -46,8 +45,9 @@ exit:
  int32_t nand_secure_read(struct amlnand_chip * aml_chip, char *buf,int len)
 {
 	//struct amlnand_chip * aml_chip = provider->priv;
-	secure_t *secure_ptr = NULL;
-	int error = 0,i=0;
+	//secure_t *secure_ptr = NULL;
+	unsigned char *secure_ptr = NULL;
+	int error = 0;
 	if(len > CONFIG_SECURE_SIZE)
 	{
 		aml_nand_msg("key data len too much,%s\n",__func__);
@@ -58,15 +58,15 @@ exit:
 		return -ENOMEM;
 	memset(secure_ptr,0,CONFIG_SECURE_SIZE);
 
-	error = amlnand_read_info_by_name(aml_chip, &(aml_chip->nand_secure),secure_ptr,SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
+	error = amlnand_read_info_by_name(aml_chip, (unsigned char *)(&aml_chip->nand_secure),secure_ptr,(unsigned char *)SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
 	if (error) 
 	{
 		aml_nand_msg("read key error,%s\n",__func__);
 		error = -EFAULT;
 		goto exit;
 	}
-	memcpy(buf, secure_ptr->data, len);
-	
+	//memcpy(buf, secure_ptr->data, len);
+	memcpy(buf, secure_ptr, len);
 exit:
 	kfree(secure_ptr);
 	return error;
@@ -74,8 +74,9 @@ exit:
 
 int32_t nand_secure_write(struct amlnand_chip * aml_chip, char *buf,int len)
 {
-	secure_t *secure_ptr = NULL;
-	int error = 0,i=0;
+	//secure_t *secure_ptr = NULL;
+	unsigned char *secure_ptr = NULL;
+	int error = 0;
 
 	if(len > CONFIG_SECURE_SIZE)
 	{
@@ -86,9 +87,10 @@ int32_t nand_secure_write(struct amlnand_chip * aml_chip, char *buf,int len)
 	if(secure_ptr == NULL)
 		return -ENOMEM;
 	memset(secure_ptr,0,CONFIG_SECURE_SIZE);
-	memcpy(secure_ptr->data + 0, buf, len);
+	//memcpy(secure_ptr->data + 0, buf, len);
+	memcpy(secure_ptr, buf, len);
 
-	error = amlnand_save_info_by_name(aml_chip, &(aml_chip->nand_secure),secure_ptr,SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
+	error = amlnand_save_info_by_name(aml_chip, (unsigned char *)(&aml_chip->nand_secure),secure_ptr,(unsigned char *)SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
 	if (error) 
 	{
 		printk("save key error,%s\n",__func__);
@@ -104,7 +106,7 @@ exit:
 int aml_secure_init(struct amlnand_chip *aml_chip)
 {
 	int ret = 0;
-	secure_t *secure_ptr = NULL;
+	unsigned char *secure_ptr = NULL;
 	
 	secure_ptr = aml_nand_malloc(CONFIG_SECURE_SIZE);
 	if (secure_ptr == NULL){
@@ -115,7 +117,7 @@ int aml_secure_init(struct amlnand_chip *aml_chip)
 	memset(secure_ptr,0x0,CONFIG_SECURE_SIZE);
 	aml_nand_dbg("nand secure: nand_secure_probe. ");
 	
-	ret = amlnand_info_init(aml_chip, &(aml_chip->nand_secure),secure_ptr,SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
+	ret = amlnand_info_init(aml_chip, (unsigned char *)(&aml_chip->nand_secure),secure_ptr,(unsigned char *)SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
 	if(ret < 0){
 		aml_nand_msg("invalid nand secure_ptr\n");
 		ret = -1;

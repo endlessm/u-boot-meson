@@ -90,11 +90,20 @@ int env_init(void)
 }
 
 #if defined CONFIG_SPI_NAND_COMPATIBLE || defined CONFIG_SPI_NAND_EMMC_COMPATIBLE || defined CONFIG_STORE_COMPATIBLE
-void spi_env_relocate_spec(void)
+int spi_env_relocate_spec(void)
 {
-	int ret;
+	int ret = 0;
     env_t env_buf;
-    
+    //only init once for env relocate
+	static int flag = 0;
+	if(flag == 0){
+		flag = 1;
+	}
+	else{
+		printf("spi env have been init already, just retun here\n");
+		return ret;
+	}
+	
 	env_flash = spi_flash_probe(CONFIG_ENV_SPI_BUS, CONFIG_ENV_SPI_CS,
 			CONFIG_ENV_SPI_MAX_HZ, CONFIG_ENV_SPI_MODE);
 	if (!env_flash)
@@ -104,10 +113,10 @@ void spi_env_relocate_spec(void)
 	if (ret)
 		goto err_read;
 
-		env_import(&env_buf, 1);
+		env_import((const char *)&env_buf, 1);
 		gd->env_valid = 1;
 
-		return;
+		return 0;
 
 err_read:
 	spi_flash_free(env_flash);
@@ -115,9 +124,10 @@ err_read:
 err_probe:
 //err_crc:
 	set_default_env("!bad CRC");
+	return 1;
 }
 #else
-void env_relocate_spec(void)
+int env_relocate_spec(void)
 {
 	int ret;
     env_t env_buf;
@@ -134,7 +144,7 @@ void env_relocate_spec(void)
 		env_import((const char *)&env_buf, 1);
 		gd->env_valid = 1;
 
-		return;
+		return 0;
 
 err_read:
 	spi_flash_free(env_flash);
@@ -142,6 +152,7 @@ err_read:
 err_probe:
 //err_crc:
 	set_default_env("!bad CRC");
+	return 1;
 }
 #endif
 

@@ -17,7 +17,7 @@ extern void do_vendor_out_complete( pcd_struct_t *_pcd, struct usb_ctrlrequest *
 extern void do_bulk_complete( pcd_struct_t *_pcd);
 extern void do_modify_memory(u16 opcode,char * inbuff);
 
-static void ep0_out_start();
+static void ep0_out_start(void);
 static int32_t ep0_complete_request( pcd_struct_t * pcd);
 /**
  * This function starts the Zero-Length Packet for the IN status phase
@@ -511,7 +511,7 @@ static void handle_in_ep_timeout_intr(uint32_t _epnum)
  *   -#	If OUT Data Packet call dwc_otg_read_packet to copy the data
  *     	to the destination buffer
  */
-int32_t dwc_otg_pcd_handle_rx_status_q_level_intr()
+int32_t dwc_otg_pcd_handle_rx_status_q_level_intr(void)
 {
 	gintmsk_data_t gintmask = { 0 };
 	device_grxsts_data_t status;
@@ -592,7 +592,7 @@ int32_t dwc_otg_pcd_handle_rx_status_q_level_intr()
  * The active request is checked for the next packet to be loaded into
  * the non-periodic Tx FIFO.
  */
-int32_t dwc_otg_pcd_handle_np_tx_fifo_empty_intr()
+int32_t dwc_otg_pcd_handle_np_tx_fifo_empty_intr(void)
 {
         gnptxsts_data_t txstatus = {0};
         gintsts_data_t gintsts;
@@ -692,7 +692,7 @@ int32_t dwc_otg_pcd_handle_np_tx_fifo_empty_intr()
  * data structure.  
  * Set up EP0 to receive SETUP packets by calling dwc_ep0_activate.
  */
-int32_t dwc_otg_pcd_handle_enum_done_intr()
+int32_t dwc_otg_pcd_handle_enum_done_intr(void)
 {
 	gintsts_data_t gintsts;
 	gusbcfg_data_t gusbcfg;
@@ -788,7 +788,7 @@ int32_t dwc_otg_pcd_handle_enum_done_intr()
  * -#	If "Setup Phase Done" process Setup Packet (See Standard USB
  *   	Command Processing)
  */
-static int32_t dwc_otg_pcd_handle_out_ep_intr()
+static int32_t dwc_otg_pcd_handle_out_ep_intr(void)
 {
 #define CLEAR_OUT_EP_INTR(__epnum,__intr) \
 do { \
@@ -876,7 +876,7 @@ do { \
  * -#	If "IN Token EP Mismatch" (disable, this is handled by EP
  *   	Mismatch Interrupt)
  */
-static int32_t dwc_otg_pcd_handle_in_ep_intr()
+static int32_t dwc_otg_pcd_handle_in_ep_intr(void)
 {
 #define CLEAR_IN_EP_INTR(__epnum,__intr) \
 do { \
@@ -996,7 +996,7 @@ do { \
  *        store any setup packets received
  *
  */
-static void ep0_out_start()
+static void ep0_out_start(void)
 {
 	deptsiz0_data_t doeptsize0 = { 0};
 	depctl_data_t doepctl = { 0 };
@@ -1041,7 +1041,7 @@ static void ep0_out_start()
  * At this point, all the required initialization, except for enabling
  * the control 0 OUT endpoint is done, for receiving SETUP packets.
  */
-int32_t dwc_otg_pcd_handle_usb_reset_intr( )
+int32_t dwc_otg_pcd_handle_usb_reset_intr(void)
 {
 
         depctl_data_t doepctl = { 0};
@@ -1120,7 +1120,7 @@ int32_t dwc_otg_pcd_handle_usb_reset_intr( )
 
 
 ///////////////////////////////////////////////////////////////////
-int dwc_common_irq()
+int dwc_common_irq(void)
 {
 	gotgint_data_t gotgint;
 	
@@ -1137,7 +1137,7 @@ int dwc_common_irq()
 	return 0;
 }
 
-int dwc_pcd_irq()
+int dwc_pcd_irq(void)
 {
 	gintsts_data_t  gintr_status;
 	gintsts_data_t  gintr_msk;

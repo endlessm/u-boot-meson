@@ -5,6 +5,11 @@
  * (C) 2012 8
  */
 #include "../include/phynand.h"
+extern void set_chip_state(struct amlnand_phydev *phydev, chip_state_t state);
+extern int aml_ubootenv_init(struct amlnand_chip *aml_chip);
+extern int amlnand_save_info_by_name(struct amlnand_chip *aml_chip,unsigned char * info,unsigned char * buf,unsigned char * name,unsigned size);
+extern int aml_nand_update_key(struct amlnand_chip * aml_chip, char *key_ptr);
+extern int aml_nand_update_ubootenv(struct amlnand_chip * aml_chip, char *env_ptr);
 
 struct bch_desc bch_list[MAX_ECC_MODE_NUM] = {
 
@@ -51,7 +56,7 @@ void *aml_nand_malloc(uint32 size)
 
 void aml_nand_free(const void *ptr)
 {
-    kfree(ptr);
+    kfree((void *)ptr);
 }
 
 #ifndef AML_NAND_UBOOT
@@ -390,12 +395,11 @@ void get_sys_clk_rate(int * rate)
 {
 	struct amlnand_chip *aml_chip = (struct amlnand_chip *)phydev->priv;	
 	struct nand_flash *flash = &(aml_chip->flash);
-	struct phydev_ops *devops = &(phydev->ops);
+	//struct phydev_ops *devops = &(phydev->ops);
 	struct hw_controller *controller = &(aml_chip->controller); 
-	struct en_slc_info *slc_info = &(controller->slc_info);
 	
 	unsigned en_slc,configure_data, pages_per_blk; 
-	int chip_num=1, nand_read_info, new_nand_type, i;
+	int chip_num=1, nand_read_info, new_nand_type;
 
 	pages_per_blk = flash->blocksize / flash->pagesize;
 	new_nand_type = aml_chip->flash.new_type;
@@ -413,7 +417,8 @@ void get_sys_clk_rate(int * rate)
     }    
         
 #ifdef CONFIG_NAND_AML_M8
-	
+	int i;
+	struct en_slc_info *slc_info = &(controller->slc_info);
 	memset(page0_buf, 0x0, flash->pagesize);
 
 	struct nand_page0_cfg_t *info_cfg = (struct nand_page0_cfg_t *)page0_buf;
@@ -439,12 +444,11 @@ void get_sys_clk_rate(int * rate)
 		}		
 	}
 
-		
-
 	chip_num = controller->chip_num;
-	aml_nand_msg("chip_num %d controller->chip_num %d",chip_num,controller->chip_num);
+	aml_nand_msg("chip_num %d controller->chip_num %d, ce bitmask %0x",chip_num,controller->chip_num, aml_chip->ce_bit_mask);
 	nand_read_info = chip_num;	// chip_num occupy the lowest 2 bit
 
+	info->ce_mask = aml_chip->ce_bit_mask;
 	info->nand_read_info = nand_read_info;
 	info->pages_in_block = pages_per_blk;
 	info->new_nand_type = new_nand_type;
@@ -478,8 +482,12 @@ void uboot_set_ran_mode(struct amlnand_phydev *phydev)
 
 int aml_sys_info_init(struct amlnand_chip *aml_chip)
 {
+#ifdef CONFIG_SECURITYKEY
 	nand_arg_info * nand_key = &aml_chip->nand_key;  
+#endif
+#ifdef CONFIG_SECURE_NAND
 	nand_arg_info  * nand_secure= &aml_chip->nand_secure;
+#endif
 	nand_arg_info *  uboot_env =  &aml_chip->uboot_env;
 	unsigned char *buf = NULL;
 	unsigned int buf_size = MAX(CONFIG_SECURE_SIZE,CONFIG_KEYSIZE);
@@ -492,6 +500,7 @@ int aml_sys_info_init(struct amlnand_chip *aml_chip)
 	memset(buf,0x0,buf_size);
 	
 #ifdef CONFIG_SECURITYKEY
+	extern int aml_key_init(struct amlnand_chip *aml_chip);
 		if(nand_key->arg_valid == 0){
 			ret = aml_key_init(aml_chip);
 			if(ret < 0){
@@ -510,7 +519,6 @@ int aml_sys_info_init(struct amlnand_chip *aml_chip)
 			}
 		}
 #endif
-
 	if((uboot_env->arg_valid == 0) && (boot_device_flag == 1)){
 		ret = aml_ubootenv_init(aml_chip);
 		if(ret < 0){
@@ -521,7 +529,7 @@ int aml_sys_info_init(struct amlnand_chip *aml_chip)
 	
 #ifdef CONFIG_SECURITYKEY
 	if(nand_key->arg_valid == 0){
-		ret = amlnand_save_info_by_name(aml_chip,&(aml_chip->nand_key),buf, KEY_INFO_HEAD_MAGIC,CONFIG_KEYSIZE);
+		ret = amlnand_save_info_by_name(aml_chip,(unsigned char *)(&(aml_chip->nand_key)),buf, (unsigned char *)KEY_INFO_HEAD_MAGIC,CONFIG_KEYSIZE);
 		if(ret < 0){
 			aml_nand_msg("nand save default key failed");
 			goto exit_error;
@@ -531,7 +539,7 @@ int aml_sys_info_init(struct amlnand_chip *aml_chip)
 
 #ifdef CONFIG_SECURE_NAND
 	if(nand_secure->arg_valid == 0){
-		ret = amlnand_save_info_by_name(aml_chip,&(aml_chip->nand_secure),buf, SECURE_INFO_HEAD_MAGIC,CONFIG_SECURE_SIZE);
+		ret = amlnand_save_info_by_name(aml_chip,(unsigned char *)(&aml_chip->nand_secure),buf, (unsigned char *)SECURE_INFO_HEAD_MAGIC, CONFIG_SECURE_SIZE);
 		if(ret < 0){
 			aml_nand_msg("nand save default secure_ptr failed");
 			goto exit_error;
@@ -582,27 +590,27 @@ int aml_sys_info_error_handle(struct amlnand_chip *aml_chip)
 #ifdef AML_NAND_UBOOT
 void amlnf_disprotect(uchar * name)
 {
-	struct amlnand_chip *aml_chip = aml_nand_chip;
+	//struct amlnand_chip *aml_chip = aml_nand_chip;
 
 #ifdef CONFIG_SECURITYKEY
-	if(strcmp(name, "key") == 0){
+	if(strcmp((const char *)name, "key") == 0){
 		aml_nand_msg("disprotect key");
 		info_disprotect |= DISPROTECT_KEY;
 	}
 #endif
 
 #ifdef CONFIG_SECURE_NAND
-	if(strcmp(name, "secure") == 0){	
+	if(strcmp((const char *)name, "secure") == 0){	
 		aml_nand_msg("disprotect secure");
 		info_disprotect |= DISPROTECT_SECURE;
 	}
 #endif
 
-	if(strcmp(name, "fbbt") == 0){	
+	if(strcmp((const char *)name, "fbbt") == 0){	
 		aml_nand_msg("disprotect fbbt");
 		info_disprotect |= DISPROTECT_FBBT;
 	}
-	if(strcmp(name, "hynix") == 0){ 
+	if(strcmp((const char *)name, "hynix") == 0){ 
 		aml_nand_msg("disprotect hynix");
 		info_disprotect |= DISPROTECT_HYNIX;
 	}

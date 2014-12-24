@@ -87,23 +87,6 @@ typedef enum {
 #define	LCD_POWER_GPIO_OUTPUT_HIGH	1
 #define	LCD_POWER_GPIO_INPUT		2
 
-static const char* lcd_power_type_table[]={
-	"cpu",
-	"pmu",
-	"signal",
-	"init",
-	"null",
-};
-
-static const char* lcd_power_pmu_gpio_table[]={
-	"GPIO0",
-	"GPIO1",
-	"GPIO2",
-	"GPIO3",
-	"GPIO4",
-	"null",
-};
-
 typedef enum {
 	LCD_DIGITAL_MIPI = 0,
 	LCD_DIGITAL_LVDS = 1,
@@ -112,24 +95,6 @@ typedef enum {
 	LCD_DIGITAL_MINILVDS = 4,
 	LCD_TYPE_MAX,
 } Lcd_Type_t;
-
-static const char* lcd_type_table[]={
-	"MIPI",
-	"LVDS",
-	"eDP",
-	"TTL",
-	"miniLVDS",
-	"invalid",
-};
-
-static const char* lcd_type_table_match[]={
-	"mipi",
-	"lvds",
-	"edp",
-	"ttl",
-	"minilvds",
-	"invalid",
-};
 
 #define PANEL_MODEL_DEFAULT	"Panel_Default"
 typedef struct {
@@ -371,15 +336,6 @@ typedef enum {
 	BL_CTL_EXTERN = 4,
 	BL_CTL_MAX = 5,
 } BL_Ctrl_Method_t;
-
-static const char* bl_ctrl_method_table[]={
-	"gpio",
-	"pwm_negative",
-	"pwm_positive",
-	"pwm_combo",
-	"extern",
-	"null",
-};
 
 typedef enum {
 	BL_PWM_A = 0,

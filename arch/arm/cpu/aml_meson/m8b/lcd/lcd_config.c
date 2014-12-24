@@ -29,6 +29,7 @@
 #include <asm/arch/vinfo.h>
 #include <asm/arch/lcd_reg.h>
 #include <amlogic/lcdoutc.h>
+#include <amlogic/aml_lcd_common.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/timing.h>
 #include "lcd_config.h"
@@ -38,6 +39,15 @@
 
 static Lcd_Config_t *lcd_Conf;
 static unsigned char lcd_gamma_init_err = 0;
+
+#define SS_LEVEL_MAX	5
+static const char *lcd_ss_level_table[]={
+	"0",
+	"0.5%",
+	"1%",
+	"1.5%",
+	"2%",
+};
 
 static void print_lcd_driver_version(void)
 {
@@ -67,13 +77,13 @@ static void lcd_ports_ctrl_mipi(Bool_t status)
     if (status) {
         switch (lcd_Conf->lcd_control.mipi_config->lane_num) {
             case 1:
-                WRITE_LCD_CBUS_REG_BITS(HHI_DIF_CSI_PHY_CNTL3, 0x11, 11, 5);
+                WRITE_LCD_CBUS_REG_BITS(HHI_DIF_CSI_PHY_CNTL3, 0x14, 11, 5);
                 break;
             case 2:
-                WRITE_LCD_CBUS_REG_BITS(HHI_DIF_CSI_PHY_CNTL3, 0x19, 11, 5);
+                WRITE_LCD_CBUS_REG_BITS(HHI_DIF_CSI_PHY_CNTL3, 0x1c, 11, 5);
                 break;
             case 3:
-                WRITE_LCD_CBUS_REG_BITS(HHI_DIF_CSI_PHY_CNTL3, 0x1d, 11, 5);
+                WRITE_LCD_CBUS_REG_BITS(HHI_DIF_CSI_PHY_CNTL3, 0x1e, 11, 5);
                 break;
             case 4:
                 WRITE_LCD_CBUS_REG_BITS(HHI_DIF_CSI_PHY_CNTL3, 0x1f, 11, 5);
@@ -940,11 +950,11 @@ static void lcd_test(unsigned num)
 		case 4:
 			WRITE_LCD_REG(ENCL_VIDEO_MODE_ADV, 0);
 			WRITE_LCD_REG(ENCL_TST_MDSEL, 0);
-			WRITE_LCD_REG(ENCL_TST_Y, 0x3ff);
+			WRITE_LCD_REG(ENCL_TST_Y, 0x200);
 			WRITE_LCD_REG(ENCL_TST_CB, 0x200);
 			WRITE_LCD_REG(ENCL_TST_CR, 0x200);
 			WRITE_LCD_REG(ENCL_TST_EN, 1);
-			printf("show test pattern 4: White (0: disable test pattern)\n");
+			printf("show test pattern 4: Gray (0: disable test pattern)\n");
 			break;
 		case 5:
 			WRITE_LCD_REG(ENCL_VIDEO_MODE_ADV, 0);
@@ -986,7 +996,7 @@ static void print_lcd_clk_info(void)
     printf("vid2 pll clk      %uMHz\n"
            "lvds fifo clk     %uMHz\n"
            "cts encl clk      %uMHz\n\n",
-           clk_util_clk_msr(62), clk_util_clk_msr(24), clk_util_clk_msr(9));
+           (unsigned int)clk_util_clk_msr(12), (unsigned int)clk_util_clk_msr(24), (unsigned int)clk_util_clk_msr(9));
 }
 
 static void lcd_module_enable(void)
@@ -1015,15 +1025,10 @@ static void generate_clk_parameter(Lcd_Config_t *pConf)
     unsigned int dsi_bit_rate_min=0, dsi_bit_rate_max=0;
     unsigned clk_num = 0;
     unsigned tmp;
-    unsigned fin = FIN_FREQ;
-    unsigned fout = pConf->lcd_timing.lcd_clk;
+    unsigned fin, fout;
 
-    if (fout >= 200) {//clk
-        fout = fout / 1000;  //kHz
-    }
-    else {//frame_rate
-        fout = (fout * pConf->lcd_basic.h_period * pConf->lcd_basic.v_period) / 1000;	//kHz
-    }
+    fin = FIN_FREQ; //kHz
+    fout = pConf->lcd_timing.lcd_clk / 1000; //kHz
 
     switch (pConf->lcd_basic.lcd_type) {
         case LCD_DIGITAL_MIPI:
@@ -1335,7 +1340,7 @@ static void lcd_tcon_config(Lcd_Config_t *pConf)
 #endif
 
     if (pConf->lcd_timing.vso_user == 0) {
-        pConf->lcd_timing.vso_hstart = pConf->lcd_timing.vs_hs_addr;
+        //pConf->lcd_timing.vso_hstart = pConf->lcd_timing.vs_hs_addr;
         pConf->lcd_timing.vso_vstart = pConf->lcd_timing.vs_vs_addr;
     }
 
@@ -1347,6 +1352,10 @@ static void lcd_tcon_config(Lcd_Config_t *pConf)
 static void lcd_control_config_pre(Lcd_Config_t *pConf)
 {
     unsigned ss_level;
+
+    if (pConf->lcd_timing.lcd_clk < 200) {//prepare refer clock for frame_rate setting
+        pConf->lcd_timing.lcd_clk = (pConf->lcd_timing.lcd_clk * pConf->lcd_basic.h_period * pConf->lcd_basic.v_period);
+    }
 
     ss_level = ((pConf->lcd_timing.clk_ctrl >> CLK_CTRL_SS) & 0xf);
     ss_level = ((ss_level >= SS_LEVEL_MAX) ? (SS_LEVEL_MAX-1) : ss_level);

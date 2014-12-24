@@ -4,7 +4,11 @@
 #define CONFIG_MACH_MESON8_M201  // generate M8 M201 machid number
 
 #define CONFIG_POWER_SPL
+#ifdef CONFIG_M201_COSTDOWN
+#define CONFIG_PWM_VDDEE_VOLTAGE            1100   //VDDEE voltage when boot, must have
+#else
 #define CONFIG_PWM_VDDEE_VOLTAGE            1050   //VDDEE voltage when boot, must have
+#endif
 #define CONFIG_PWM_VDDEE_SUSPEND_VOLTAGE    860	 //VDDEE voltage when suspend, must have
 #define CONFIG_IR_REMOTE_WAKEUP 1
 #define CONFIG_SECURITYKEY
@@ -48,12 +52,23 @@
 #define CONFIG_CMD_PWM  1
 
 //Enable storage devices
+#define CONFIG_CMD_CPU_TEMP
 #define CONFIG_CMD_NAND  1
 #define CONFIG_VIDEO_AML 1
 #define CONFIG_CMD_BMP 1
 #define CONFIG_VIDEO_AMLTVOUT 1
 #define CONFIG_AML_HDMI_TX  1
 #define CONFIG_OSD_SCALE_ENABLE 1
+
+#if defined(CONFIG_VIDEO_AMLTVOUT)
+#define CONFIG_CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT	1
+
+#define CONFIG_CVBS_CHINASARFT		0x0
+#define CONFIG_CVBS_CHINATELECOM	0x1
+#define CONFIG_CVBS_CHINAMOBILE		0x2
+#define CONFIG_CVBS_PERFORMANCE_ACTIVED	CONFIG_CVBS_CHINASARFT
+
+#endif
 
 //Enable storage devices
 #define CONFIG_CMD_SF    1
@@ -125,7 +140,7 @@
 #define CONFIG_CMD_AUTOSCRIPT
 
 #define CONFIG_CMD_REBOOT 1
-//#define CONFIG_PREBOOT
+//#define CONFIG_PREBOOT 
 
 #define  CONFIG_AML_GATE_INIT	1
 
@@ -140,7 +155,6 @@
 	"console=ttyS0,115200n8\0" \
 	"bootm_low=0x00000000\0" \
 	"bootm_size=0x80000000\0" \
-	"mmcargs=setenv bootargs console=${console} " \
 	"boardname=m8_board\0" \
 	"chipname=8726m8\0" \
 	"initrd_high=60000000\0" \
@@ -177,7 +191,17 @@
 	"firstboot=1\0" \
 	"store=0\0"\
 	"preloaddtb=imgread dtb boot ${loadaddr}\0" \
-	"preboot=video open; video clear; video dev open ${outputmode}\0"\
+	"cvbs_drv=0\0"\
+	"preboot="\
+        "if itest ${upgrade_step} == 3; then run prepare; run storeargs; run update; fi; "\
+        "if itest ${upgrade_step} == 1; then  "\
+            "defenv_reserve_env; setenv upgrade_step 2; saveenv;"\
+        "fi; "\
+        "run prepare;"\
+        "run storeargs;"\
+        "get_rebootmode; clear_rebootmode; echo reboot_mode=${reboot_mode};" \
+        "run update_ir; " \
+        "run switch_bootmode\0" \
     \
     "update_ir="\
         "if irdetect; then run update; fi\0" \
@@ -225,6 +249,12 @@
          "mmcinfo;"\
          "fatload mmc 0 ${loadaddr} boot.img;"\
          "bootm\0" \
+    \
+    "prepare="\
+        "logo size ${outputmode}; video open; video clear; video dev open ${outputmode};"\
+        "imgread pic logo bootup ${loadaddr_logo}; "\
+        "bmp display ${bootup_offset}; bmp scale;"\
+        "\0"\
 	\
 	"storeboot="\
         "echo Booting...; "\
@@ -256,10 +286,10 @@
 
 #define CONFIG_BOOTCOMMAND   "run endlessboot"
 
-#define CONFIG_FORCE_EMMC_BOOT
-
 #define CONFIG_AUTO_COMPLETE	1
 #define CONFIG_ENV_SIZE         (64*1024)
+
+#define CONFIG_FORCE_EMMC_BOOT
 
 #define CONFIG_STORE_COMPATIBLE
 
@@ -460,6 +490,7 @@
 /* secure storage support both spi and emmc */
 #define CONFIG_SECURE_MMC
 #define CONFIG_SPI_NOR_SECURE_STORAGE
+#define CONFIG_SECURE_NAND 1
 #endif // CONFIG_SECURE_STORAGE_BURNED
 
 #endif //CONFIG_MESON_TRUSTZONE

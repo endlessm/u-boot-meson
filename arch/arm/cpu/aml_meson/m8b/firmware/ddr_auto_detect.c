@@ -139,6 +139,7 @@ void ddr_size_auto_detect(struct ddr_set * timing_reg){
 		serial_put_hex(readl(0), 32);
 		serial_puts("\n");
 #endif
+		asm volatile("DSB"); /*sync ddr data*/
 		if(readl(0) == 0x87654321){
 			break;
 		}

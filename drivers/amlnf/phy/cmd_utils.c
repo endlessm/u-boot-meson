@@ -30,8 +30,8 @@ void amlnf_get_chip_size(uint64_t *size)
  {
 	 struct amlnand_chip *aml_chip = (struct amlnand_chip *)phydev->priv;	 
 	 struct phydev_ops *devops = &(phydev->ops);
-	 struct hw_controller *controller = &(aml_chip->controller); 
-	 struct chip_operation *operation = &(aml_chip->operation);  
+	 //struct hw_controller *controller = &(aml_chip->controller); 
+	 //struct chip_operation *operation = &(aml_chip->operation);  
 	 struct chip_ops_para *ops_para = &(aml_chip->ops_para);
  
 	 uint64_t  dump_len =0;
@@ -60,11 +60,11 @@ void amlnf_get_chip_size(uint64_t *size)
 
  int nand_read_ops(struct amlnand_phydev *phydev)
 {
-	struct amlnand_chip *aml_chip = (struct amlnand_chip *)phydev->priv;	
+	//struct amlnand_chip *aml_chip = (struct amlnand_chip *)phydev->priv;	
 	struct phydev_ops *devops = &(phydev->ops);
-	struct hw_controller *controller =&(aml_chip->controller);	
-	struct chip_operation *operation = &(aml_chip->operation);	
-	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
+	//struct hw_controller *controller =&(aml_chip->controller);	
+	//struct chip_operation *operation = &(aml_chip->operation);	
+	//struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 	uint64_t offset , read_len;
 	unsigned char * buffer;
 	int ret = 0;
@@ -119,11 +119,11 @@ aml_nand_dbg("write_len =%llx",read_len);
 
  int nand_write_ops(struct amlnand_phydev *phydev)
 {
-	struct amlnand_chip *aml_chip = (struct amlnand_chip *)phydev->priv;	
+	//struct amlnand_chip *aml_chip = (struct amlnand_chip *)phydev->priv;	
 	struct phydev_ops *devops = &(phydev->ops);
-	struct hw_controller *controller = &(aml_chip->controller);	
-	struct chip_operation *operation = &(aml_chip->operation);	
-	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
+	//struct hw_controller *controller = &(aml_chip->controller);	
+	//struct chip_operation *operation = &(aml_chip->operation);	
+	//struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 	uint64_t offset , write_len;
 	unsigned char * buffer;
 	int ret = 0;
@@ -177,12 +177,12 @@ static int erase_env_protect(struct amlnand_chip *aml_chip, int blk)
 {	
 	struct hw_controller *controller = &aml_chip->controller;
 	struct nand_flash *flash = &aml_chip->flash;
-	struct chip_operation *operation = & aml_chip->operation;
-	struct chip_ops_para  *ops_para = &aml_chip->ops_para; 
+	//struct chip_operation *operation = & aml_chip->operation;
+	//struct chip_ops_para  *ops_para = &aml_chip->ops_para; 
 	struct read_retry_info *retry_info = &(controller->retry_info);
-	nand_arg_info   * nand_bbtinfo = &(aml_chip->nand_bbtinfo);	
+	//nand_arg_info   * nand_bbtinfo = &(aml_chip->nand_bbtinfo);	
 	nand_arg_info  *shipped_bbtinfo = &aml_chip->shipped_bbtinfo;
-	nand_arg_info  * config_msg = &aml_chip->config_msg;
+	//nand_arg_info  * config_msg = &aml_chip->config_msg;
 	nand_arg_info	*	nand_key = &aml_chip->nand_key;
 	nand_arg_info  *nand_secure = &aml_chip->nand_secure;
 
@@ -240,8 +240,8 @@ int  amlnf_erase_ops(uint64_t off, uint64_t erase_len,unsigned char scrub_flag)
 	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 	struct nand_flash *flash = &(aml_chip->flash);
 	
-	uint64_t  erase_addr,  erase_off;
-	unsigned erase_shift, write_shift, writesize, erasesize, pages_per_blk;
+	//uint64_t  erase_addr,  erase_off;
+	unsigned erase_shift, write_shift, pages_per_blk;
 	int  start_blk,total_blk, ret = 0;
 	int percent=0;
 	int percent_complete = -1;

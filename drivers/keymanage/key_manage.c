@@ -8,6 +8,9 @@
 //#include <amlogic/secure_storage.h>
 #include "key_manage.h"
 
+extern int efuse_chk_written(loff_t pos, size_t count);
+extern ssize_t efuse_read(char *buf, size_t count, loff_t *ppos );
+
 /*
  * key_manage.c
  * this file support key read/write with key unite interface,and don't care about device for saving key
@@ -42,6 +45,14 @@
 #define KEY_WRITE_PERMIT	(10<<4)
 #define KEY_WRITE_PROHIBIT	(11<<4)
 //#define ACS_ADDR_ADDR	0xd9000200
+
+#ifdef CONFIG_SECURESTORAGEKEY
+extern int securestore_key_init( char *seed,int len);
+extern int securestore_key_write(char *keyname, char *keybuf,unsigned int keylen,int keytype);
+extern int securestore_key_read(char *keyname,char *keybuf,unsigned int keylen,unsigned int *reallen);
+extern int securestore_key_query(char *keyname, unsigned int *query_return);
+extern int securestore_key_uninit(void);
+#endif
 
 /*function: key_unify_secure_boot_key
  * keyname:
@@ -294,8 +305,8 @@ static int key_efuse_read(char *keyname,unsigned char *keydata,unsigned int data
 
 static int _key_query_secure_boot_set(char* keyname, unsigned int * keystate)
 {
-    unsigned int pos = 0;
-    unsigned int info_lis=0xffffffff;
+    //unsigned int pos = 0;
+    //unsigned int info_lis=0xffffffff;
     int nChkVal = 0, nChkAddr = 0;
 
     if(strcmp("secure_boot_set", keyname)){
@@ -305,7 +316,7 @@ static int _key_query_secure_boot_set(char* keyname, unsigned int * keystate)
 
     //Check if bit7 && bit 6 are both 1
     //Attention: check this code to stay same with cmd[efuse secure_boot_set] 
-    efuse_read(&nChkVal,sizeof(nChkVal),(loff_t*)&nChkAddr);
+    efuse_read((char *)&nChkVal,sizeof(nChkVal),(loff_t*)&nChkAddr);
     if(((nChkVal >> 7) & 1) && ((nChkVal >> 6) & 1))
     {
         *keystate = KEY_BURNED;
@@ -568,7 +579,7 @@ int key_unify_uninit(void)
 
 
 
-int do_keyunify(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
+int do_keyunify(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	int err;
 	char *cmd,*name;

@@ -13,6 +13,7 @@
 #include <mmc.h>
 
 extern int optimus_burn_package_in_sdmmc(const char* sdc_cfg_file);
+extern void close_usb_phy_clock(int cfg);
 
 //check ${sdcburncfg} exist in external mmc and internal flash not burned yet!
 int aml_check_is_ready_for_sdc_produce(void)
@@ -26,7 +27,7 @@ int aml_check_is_ready_for_sdc_produce(void)
     {
         //'MESON_SDC_BURNER_REBOOT == reboot_mode'  means sdcard upgrade mode
         if(MESON_SDC_BURNER_REBOOT != reboot_mode){
-            DWN_MSG("reboot_mode=0x%x\n", reboot_mode);
+            DWN_MSG("reboot_mode=0x%x\n", (unsigned int)reboot_mode);
             return 0;//not ready
         }
     }
@@ -56,10 +57,10 @@ int aml_check_is_ready_for_sdc_produce(void)
 
 static unsigned _get_romcode_boot_id(void)
 {
-    unsigned* pBootId = &C_ROM_BOOT_DEBUG->boot_id;
+    unsigned* pBootId = (unsigned*)&(C_ROM_BOOT_DEBUG->boot_id);
     unsigned boot_id = *pBootId;
 #ifdef CONFIG_MESON_TRUSTZONE
-    boot_id = meson_trustzone_sram_read_reg32(pBootId);
+    boot_id = meson_trustzone_sram_read_reg32((uint32_t)pBootId);
 #endif// #ifdef CONFIG_MESON_TRUSTZONE
 
     return boot_id;

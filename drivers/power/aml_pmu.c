@@ -29,9 +29,11 @@ int aml_battery_calibrate(void);
 #define AML_PMU_VERSION_D       0x03
 #define AML_PMU_VERSION_B       0x02
 
+extern int aml_i2c_xfer_slow(struct i2c_msg *msgs, int);
+extern void mdelay(int n);
 static int aml_pmu_version  = 0;
 
-int aml_pmu_write(uint32_t add, uint32_t val)
+int aml_pmu_write(int32_t add, uint8_t val)
 {
     int ret;
     uint8_t buf[3] = {};
@@ -54,7 +56,7 @@ int aml_pmu_write(uint32_t add, uint32_t val)
     return 0;
 }
 
-int aml_pmu_write16(uint32_t add, uint32_t val)
+int aml_pmu_write16(int32_t add, uint32_t val)
 {
     int ret;
     uint8_t buf[4] = {};
@@ -78,7 +80,7 @@ int aml_pmu_write16(uint32_t add, uint32_t val)
     return 0;
 }
 
-int aml_pmu_writes(uint32_t add, uint32_t len, uint8_t *buff)
+int aml_pmu_writes(int add, uint8_t *buff, int len)
 {
     int ret;
     uint8_t buf[MAX_BUF] = {};
@@ -101,7 +103,7 @@ int aml_pmu_writes(uint32_t add, uint32_t len, uint8_t *buff)
     return 0;
 }
 
-int aml_pmu_read(uint32_t add, uint8_t *val)
+int aml_pmu_read(int add, uint8_t *val)
 {
     int ret;
     uint8_t buf[2] = {};
@@ -129,7 +131,7 @@ int aml_pmu_read(uint32_t add, uint8_t *val)
     return 0;
 }
 
-int aml_pmu_read16(uint32_t add, uint16_t *val)
+int aml_pmu_read16(int32_t add, uint16_t *val)
 {
     int ret;
     uint8_t buf[2] = {};
@@ -146,7 +148,7 @@ int aml_pmu_read16(uint32_t add, uint16_t *val)
             .addr  = AML_PMU_ADDR,
             .flags = I2C_M_RD,
             .len   = 2, 
-            .buf   = val,
+            .buf   = (uint8_t *)val,
         }
     };
     ret = aml_i2c_xfer_slow(msg, 2);
@@ -157,7 +159,7 @@ int aml_pmu_read16(uint32_t add, uint16_t *val)
     return 0;
 }
 
-int aml_pmu_reads(uint32_t add, uint32_t len, uint8_t *buff)
+int aml_pmu_reads(int add, uint8_t *buff, int len)
 {
     int ret;
     uint8_t buf[2] = {};
@@ -185,7 +187,7 @@ int aml_pmu_reads(uint32_t add, uint32_t len, uint8_t *buff)
     return 0;
 }
 
-int aml_pmu_set_bits(uint32_t add, uint8_t bits, uint8_t mask)
+int aml_pmu_set_bits(int add, uint8_t bits, uint8_t mask)
 {
     uint8_t val;
     aml_pmu_read(add, &val);
@@ -204,7 +206,7 @@ int aml_pmu_get_voltage(void)
     for (i = 0; i < 4; i++) {
         aml_pmu_write(0x009A, 0x04);
         udelay(100);
-        aml_pmu_reads(0x00AF, 2, buf);
+        aml_pmu_reads(0x00AF, buf, 2);
         tmp = ((buf[1] & 0x0f) << 8) + buf[0];
         if (aml_pmu_version <= AML_PMU_VERSION_B && aml_pmu_version) {
             tmp = tmp * 7200 / 2048;        // A or B version 
@@ -228,7 +230,7 @@ int aml_pmu_get_current(void)
     for (i = 0; i < 4; i++) {
         aml_pmu_write(0x009A, 0x40);
         udelay(100);
-        aml_pmu_reads(0x00AB, 2, buf);
+        aml_pmu_reads(0x00AB, buf, 2);
         tmp = ((buf[1] & 0x0f) << 8) + buf[0];
         if (tmp & 0x800) {                                              // complement code
             tmp = (tmp ^ 0xfff) + 1;
@@ -245,7 +247,7 @@ int aml_pmu_get_coulomb_acc(void)
     int coulomb;
 
     aml_pmu_write(0x009A, 0x40);
-    aml_pmu_reads(0x00B5, 4, buf);
+    aml_pmu_reads(0x00B5, buf, 4);
 
     result  = (buf[0] <<  0) | 
               (buf[1] <<  8) | 
@@ -262,7 +264,7 @@ uint32_t aml_pmu_get_coulomb_cnt(void)
     uint32_t result;
     
     aml_pmu_write(0x009A, 0x40);
-    aml_pmu_reads(0x00b9, 4, buf);
+    aml_pmu_reads(0x00b9, buf, 4);
 
     result = (buf[0] <<  0) | 
              (buf[1] <<  8) | 
@@ -345,10 +347,9 @@ int aml_pmu_set_charger(int enable)
     return -1;
 }
 
-int aml_pmu_power_off(void)
+void aml_pmu_power_off(void)
 {
     uint8_t buf = (1 << 5);                                 // software goto OFF state
-    uint8_t tmp;
     aml_pmu_set_gpio(1, 1);                                 //turn off backlight
 
     mdelay(200);                                             //for decrease impulse current which can open the backlight led
@@ -373,7 +374,7 @@ int aml_pmu_get_charge_status(void)
 {
     uint8_t  val[4] = {};
     uint32_t tmp;
-    aml_pmu_reads(0x00de, 4, val);
+    aml_pmu_reads(0x00de, val, 4);
     tmp = (val[0] <<  0) | 
           (val[1] <<  8) |
           (val[2] << 16) |
@@ -548,7 +549,6 @@ int amp_pmu_set_charging_current(int current)
 
 int aml_pmu_set_gpio(int pin, int val)
 {
-    int ret;
     uint32_t data;
     if (pin <= 0 || pin > 4 || val > 1 || val < 0) {
         printf("ERROR, invalid input value, pin = %d, val= %d\n", pin, val);
@@ -574,15 +574,16 @@ int aml_pmu_set_gpio(int pin, int val)
         aml_pmu_write16(0x0082, data);    
     }
 #endif
+    return 0;
 }
 
-int aml_pmu_get_gpio(int pin, uint8_t *val)
+int aml_pmu_get_gpio(int pin, int *val)
 {
     int ret;
     uint8_t data;
 
     if (pin <= 0 || pin > 4 || !val) {
-        printf("ERROR, invalid input value, pin = %d, val= %d\n", pin, val);
+        printf("ERROR, invalid input value, pin = %d, val= %p\n", pin, val);
         return -1;
     }
     ret = aml_pmu_read(0x00C4, &data);
@@ -632,7 +633,7 @@ int set_power_down_slot(void)
         (GPIO4_SLOT_IDX    << 4) | GPIO3_SLOT_IDX,          // 0x10, gpio4 | gpio3
     };
 
-    return aml_pmu_writes(0x0009, 8, power_down_seq);
+    return aml_pmu_writes(0x0009, power_down_seq, 8);
 }
 
 #define CHIP_VERSION    2
@@ -713,7 +714,7 @@ void aml_pmu_set_voltage(int dcdc, int voltage)
     if (dcdc == AML_PMU_DCDC1) {
         addr  = 0x2f; 
         table = dcdc1_voltage_table;
-    } else if (dcdc = AML_PMU_DCDC2) {
+    } else if (dcdc == AML_PMU_DCDC2) {
         addr  = 0x38;    
         table = dcdc2_voltage_table;
     }
@@ -857,7 +858,7 @@ void dump_pmu_register(void)
 
     printf("[AML_PMU] DUMP ALL REGISTERS\n");
     for (i = 0; i < 16; i++) {
-        aml_pmu_reads(i*16, 16, val);
+        aml_pmu_reads(i*16, val, 16);
         printf("0x%02x - %02x: ", i * 16, i * 16 + 15);
         printf("%02x %02x %02x %02x ",   val[0],  val[1],  val[2],  val[3]);
         printf("%02x %02x %02x %02x   ", val[4],  val[5],  val[6],  val[7]);
@@ -994,18 +995,16 @@ int aml_pmu_init(void)
 
 static int aml1212_reads(int addr, unsigned char *buf, int count)
 {
-    return aml_pmu_reads(addr, count, buf);    
+    return aml_pmu_reads(addr, buf, count);    
 }
 
 static int aml1212_writes(int addr, unsigned char *buf, int count)
 {
-    return aml_pmu_writes(addr, count, buf);    
+    return aml_pmu_writes(addr, buf, count);    
 }
 
 static int aml_pmu_set_charging_current(int current)
 {
-    int val;
-
     if (current > 2000 || current < 0) {
         printf("%s, wrong value of charge current:%d\n", __func__, current);
     }
@@ -1090,7 +1089,7 @@ int aml_pmu_set_long_press_time(int time)
 {
     int val;
 
-    aml_pmu_read16(0x0090, &val);
+    aml_pmu_read16(0x0090, (uint16_t *)&val);
     val &= ~0x7f;
     val |= ((time / 100) - 1);
     return aml_pmu_write16(0x0090, val);
@@ -1203,7 +1202,7 @@ int aml_calculate_rdc(void)
     int32_t i_lo, i_hi;
     int32_t v_lo, v_hi;
     int32_t rdc_cal = 0;
-    int32_t avg;
+    int32_t avg = 0;
     static int32_t rdc_avg = 0;
     static int32_t rdc_cnt = 0;
 
@@ -1314,7 +1313,7 @@ int aml_update_calibrate(int charge)
     return rdc_c;
 }
 
-static struct energy_array {
+struct energy_array {
     int     ocv;                            // mV
     int     coulomb;                        // mAh read 
     int     coulomb_p;                      // mAh @ 3700mV
@@ -1486,15 +1485,15 @@ extern struct panel_operations panel_oper;
 
 int aml_battery_calibrate(void)
 {
-    int64_t energy_c = 0;
-    int64_t energy_p = 0;
+    uint64_t energy_c = 0;
+    uint64_t energy_p = 0;
     int     prev_coulomb = 0;
     int     prev_ocv  = 0;
     int     prev_ibat = 0;
     int     key;
     int     ibat_cnt = 0;
     int     i;
-    int64_t energy_top, energy_visible;
+    int64_t energy_top;
     int     base, offset, range_charge, percent, range_discharge;
     char    buf[200] = {};
     int     size;

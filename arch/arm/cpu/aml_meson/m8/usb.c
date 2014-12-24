@@ -89,11 +89,14 @@ void set_usb_phy_power(amlogic_usb_config_t * usb_cfg,int is_on)
 	usb_peri_reg_t *peri_a,*peri_b,*peri_c,*peri_d,*peri;
 	peri = NULL;
 	usb_ctrl_data_t control;
+	usb_adp_bc_data_t adp_bc;
 
 	peri_a = (usb_peri_reg_t*)CBUS_REG_ADDR(PREI_USB_PHY_REG_A);
 	peri_b = (usb_peri_reg_t*)CBUS_REG_ADDR(PREI_USB_PHY_REG_B);
 //	peri_c = (usb_peri_reg_t*)CBUS_REG_ADDR(PREI_USB_PHY_REG_C);
 //	peri_d = (usb_peri_reg_t*)CBUS_REG_ADDR(PREI_USB_PHY_REG_D);
+	peri_c = NULL;
+	peri_d = NULL;
 
 	if(port == USB_PHY_PORT_A){
 		peri = peri_a;
@@ -119,6 +122,19 @@ void set_usb_phy_power(amlogic_usb_config_t * usb_cfg,int is_on)
 		control.d32 = peri->ctrl;
 		if(!control.b.clk_detected){
 			printf("USB (%d) PHY Clock not detected!\n",port_idx);
+		}
+
+		if(IS_MESON_M8M2_CPU && port == USB_PHY_PORT_B){
+			adp_bc.d32 = peri->adp_bc;
+			adp_bc.b.aca_enable = 1;
+			peri->adp_bc = adp_bc.d32;
+			udelay(50);
+			adp_bc.d32 = peri->adp_bc;
+			if(adp_bc.b.aca_pin_float){
+				printf("USB-B ID detect failed!\n");
+				printf("Please use the chip after version RevA1!\n");
+				return;
+			}
 		}
 
 	}else{

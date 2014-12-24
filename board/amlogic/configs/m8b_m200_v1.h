@@ -44,12 +44,23 @@
 #define CONFIG_CMD_PWM  1
 
 //Enable storage devices
+#define CONFIG_CMD_CPU_TEMP
 #define CONFIG_CMD_NAND  1
 #define CONFIG_VIDEO_AML 1
 #define CONFIG_CMD_BMP 1
 #define CONFIG_VIDEO_AMLTVOUT 1
 #define CONFIG_AML_HDMI_TX  1
 #define CONFIG_OSD_SCALE_ENABLE 1
+
+#if defined(CONFIG_VIDEO_AMLTVOUT)
+#define CONFIG_CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT	1
+
+#define CONFIG_CVBS_CHINASARFT		0x0
+#define CONFIG_CVBS_CHINATELECOM	0x1
+#define CONFIG_CVBS_CHINAMOBILE		0x2
+#define CONFIG_CVBS_PERFORMANCE_ACTIVED	CONFIG_CVBS_CHINASARFT
+
+#endif
 
 //Enable storage devices
 #define CONFIG_CMD_SF    1
@@ -198,7 +209,6 @@
 	"console=ttyS0,115200n8\0" \
 	"bootm_low=0x00000000\0" \
 	"bootm_size=0x80000000\0" \
-	"mmcargs=setenv bootargs console=${console} " \
 	"boardname=m8_board\0" \
 	"chipname=8726m8\0" \
 	"initrd_high=60000000\0" \
@@ -206,7 +216,7 @@
 	"cvbsmode=576cvbs\0" \
 	"outputmode=1080p\0" \
 	"vdac_config=0x10\0" \
-    "initargs=root=/dev/system rootfstype=ext4 init=/init console=ttyS0,115200n8 no_console_suspend\0"\
+	"initargs=init=/init console=ttyS0,115200n8 no_console_suspend ramoops.mem_address=0x04e00000 ramoops.mem_size=0x100000 ramoops.record_size=0x8000 ramoops.console_size=0x4000\0" \
 	"video_dev=tvout\0" \
 	"display_width=1920\0" \
 	"display_height=1080\0" \
@@ -231,19 +241,24 @@
 	"sdcburncfg=aml_sdc_burn.ini\0"\
 	"normalstart=1000000\0" \
 	"normalsize=400000\0" \
-	"upgrade_step=2\0" \
+	"upgrade_step=0\0" \
 	"firstboot=1\0" \
 	"store=0\0"\
         "wipe_data=success\0"\
 	"preloaddtb=imgread dtb boot ${loadaddr}\0" \
+	"cvbs_drv=0\0"\
 	"preboot="\
         "if itest ${upgrade_step} == 3; then run prepare; run storeargs; run update; fi; "\
         "if itest ${upgrade_step} == 1; then  "\
+            "defenv_reserve_env; setenv upgrade_step 2; saveenv;"\
+        "fi; "\
+        "if itest ${upgrade_step} == 4; then  "\
             "defenv; setenv upgrade_step 2; saveenv;"\
         "fi; "\
+        "get_rebootmode; clear_rebootmode; echo reboot_mode=${reboot_mode};" \
+        "if test ${reboot_mode} = suspend_off; then suspend;fi;"\
         "run prepare;"\
         "run storeargs;"\
-        "get_rebootmode; clear_rebootmode; echo reboot_mode=${reboot_mode};" \
         "run update_key; " \
 	"run update_ir; " \
         "run switch_bootmode\0" \
@@ -273,11 +288,7 @@
         "fi;\0"\
     \
    	"storeargs="\
-        "setenv bootargs ${initargs} vdaccfg=${vdac_config} logo=osd1,loaded,${fb_addr},${outputmode},full hdmimode=${hdmimode} cvbsmode=${cvbsmode} androidboot.firstboot=${firstboot} hdmitx=${hdmimode}\0"\
-    "bootsdargs="\
-       "setenv bootargs root=/dev/mmcblk0p1 rw rootfstype=ext2 rootwait init=/init console=ttyS0,115200n8 no_console_suspend vdaccfg=${vdac_config} logo=osd1,loaded,${fb_addr},${outputmode},full hdmimode=${hdmimode} cvbsmode=${cvbsmode} hdmitx=${hdmimode}\0"\
-    "bootupdateargs="\
-		"setenv bootargs root=/dev/mmcblk0p1 rw rootfstype=vfat rootwait init=/init console=ttyS0,115200n8 no_console_suspend vdaccfg=${vdac_config} logo=osd1,loaded,${fb_addr},${outputmode},full hdmimode=${hdmimode} cvbsmode=${cvbsmode} hdmitx=${hdmimode} firmware=rootfs.tar.gz\0"\
+        "setenv bootargs ${initargs} cvbsdrv=${cvbs_drv} vdaccfg=${vdac_config} reboot_args=uboot_suspend logo=osd1,loaded,${fb_addr},${outputmode},full hdmimode=${hdmimode} cvbsmode=${cvbsmode} androidboot.firstboot=${firstboot} hdmitx=${cecconfig}\0"\
     \
 	"switch_bootmode="\
         "if test ${reboot_mode} = factory_reset; then "\
@@ -292,19 +303,6 @@
         	"  "\
         "fi;fi;fi;fi\0" \
     \
-     "bootsdcard="\
-        "echo Booting ...;"\
-         "run bootsdargs; "\
-         "mmcinfo;"\
-         "ext2load mmc 0 ${loadaddr} boot.img;"\
-         "bootm\0" \
-     "bootupdate="\
-        "echo Updating...;"\
-         "run bootupdateargs; "\
-         "mmcinfo;"\
-         "fatload mmc 0 ${loadaddr} boot.img;"\
-         "bootm\0" \
-    \
     "prepare="\
         "logo size ${outputmode}; video open; video clear; video dev open ${outputmode};"\
         "imgread pic logo bootup ${loadaddr_logo}; "\
@@ -313,8 +311,11 @@
 	\
 	"storeboot="\
         "echo Booting...; "\
-        "if unifykey get usid; then  "\
+        "if unifykey getserialno usid; then  "\
             "setenv bootargs ${bootargs} androidboot.serialno=${usid};"\
+        "fi;"\
+        "if unifykey get mac; then  "\
+            "setenv bootargs ${bootargs} mac=${mac}  androidboot.mac=${mac};"\
         "fi;"\
         "imgread kernel boot ${loadaddr};"\
         "bootm;"\

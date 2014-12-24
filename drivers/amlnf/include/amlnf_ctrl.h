@@ -79,6 +79,7 @@ static void inline  nand_get_chip(void )
 static void inline nand_release_chip(void)
 {
 #ifdef CONFIG_NAND_AML_M8
+	CLEAR_CBUS_REG_MASK(PAD_PULL_UP_EN_REG2, 0xf);
 	CLEAR_CBUS_REG_MASK(PAD_PULL_UP_REG2, 0x0400);
 	CLEAR_CBUS_REG_MASK(PERIPHS_PIN_MUX_2, ((0x3ff<<18) | (1<<17)));
 #else
