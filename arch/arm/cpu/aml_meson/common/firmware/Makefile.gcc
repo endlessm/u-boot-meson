@@ -88,7 +88,7 @@ all: $(ALL) $(ELFFILES)
 
 %.bin:	%.out
 	$(OBJCOPY) ${OBJCFLAGS} -O binary $< $@
-$(basename $(FIRMWARE)).out:$(OBJS) $(obj)spl.o $(target_LDS)
+$(basename $(FIRMWARE)).out:$(OBJS) $(obj)spl.o $(target_LDS) $(obj)eabi_compat.o
 endif
 %.out:
 	$(LD) $(LDFLAGS) $(filter %.o,$^) $(UCL_BOOTLIBS) $(PLATFORM_LIBGCC) \
