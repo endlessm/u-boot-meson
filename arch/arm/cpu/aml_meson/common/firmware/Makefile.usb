@@ -54,7 +54,7 @@ all: $(ALL) $(ELFFILES)
 %.bin:	%.out
 	$(OBJCOPY) ${OBJCFLAGS} -O binary $< $@
 
-$(dir $(FIRMWARE))usb_firmware.out:$(OBJS) $(obj)usb_firmware.o $(target_LDS)
+$(dir $(FIRMWARE))usb_firmware.out:$(OBJS) $(obj)usb_firmware.o $(obj)eabi_compat.o $(target_LDS)
 	$(LD) $(LDFLAGS) $(filter %.o,$^) $(PLATFORM_LIBGCC) $(UCL_BOOTLIBS) -Map $(@:%=%.map) --cref -o $@
 	
 %.out:

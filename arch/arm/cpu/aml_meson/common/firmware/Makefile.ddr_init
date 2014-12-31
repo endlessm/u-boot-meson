@@ -63,7 +63,7 @@ all: $(ALL) $(ELFFILES)
 
 %.bin:	%.out
 	$(OBJCOPY) ${OBJCFLAGS} -O binary $< $@
-$(dir $(FIRMWARE))ddr_init.out:$(OBJS) $(obj)ddr_init_main.o $(obj)ddr_init.lds
+$(dir $(FIRMWARE))ddr_init.out:$(OBJS) $(obj)ddr_init_main.o $(obj)eabi_compat.o $(obj)ddr_init.lds
 
 %.out:
 
