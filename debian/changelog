@@ -1,3 +1,9 @@
+u-boot-meson (2011.03.20141024-0) eos; urgency=medium
+
+  * Update to new Amlogic tarball
+
+ -- Daniel Drake <drake@endlessm.com>  Tue, 06 Jan 2015 07:04:22 -0600
+
 u-boot-meson (2011.03-0) eos; urgency=medium
 
   * Initial packaging based on exynos4 package
