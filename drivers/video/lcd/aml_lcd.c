@@ -351,6 +351,8 @@ int lcd_drawchars (ushort x, ushort y, uchar *str, int count)
 				}
 				bits <<= 1;
 			}
+#elif(LCD_BPP == LCD_COLOR32)
+			d=NULL;
 #endif	
 
 		}
@@ -504,14 +506,18 @@ static int do_lcdoptcmd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 	}
 	else if(strcmp(argv[0], "test") == 0)
 	{
-#ifdef LCD_TEST_PATTERN		
+#ifdef LCD_TEST_PATTERN
 		test_pattern();
-#endif		
+#endif
 		printf("LCD Test!\n");    
 		lcd_printf("\n");
 		lcd_printf("   D   \n");
 		lcd_printf("lcd_test: FILE:%s:%d, FUNC:%s\n",\
                                                      __FILE__,__LINE__,__func__);
+	}
+	else if (strcmp(argv[0], "info") == 0)
+	{
+		panel_oper.info();
 	}
 	else
 	{
@@ -520,12 +526,12 @@ static int do_lcdoptcmd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[
 		//opt_cmd_help();
 		return 1;
 	}
-	return 0;	
+	return 0;
 }
 
 U_BOOT_CMD(
 	lcdctl, 3, 1, do_lcdoptcmd,
-	"Help:\n",		
+	"Help:\n",
 	"enable	-enable lcd\n"
 	"bl_on	-lcd backlight on"
 	"bl_off	-lcd backlight off\n"
@@ -553,6 +559,7 @@ static void opt_cmd_help(void)
 	printf("bl_off	-lcd backlight off\n");
 	printf("set_bl_level <level>	-set backlight level\n");
 	printf("test	-test lcd display\n");
+	printf("info	-print lcd driver info\n");
 }
 
 int lcd_opt_cmd(int argc, char * const argv[])
@@ -581,7 +588,7 @@ int lcd_opt_cmd(int argc, char * const argv[])
 	}
 	else if(strcmp(argv[0], "test") == 0)
 	{
-#ifdef LCD_TEST_PATTERN		
+#ifdef LCD_TEST_PATTERN
 		test_pattern();
 
 		printf("LCD Test!\n");    
@@ -592,6 +599,10 @@ int lcd_opt_cmd(int argc, char * const argv[])
 #else
 		panel_oper.test(simple_strtoul(argv[1], NULL, 10));
 #endif
+	}
+	else if (strcmp(argv[0], "info") == 0)
+	{
+		panel_oper.info();
 	}
 	else
 	{

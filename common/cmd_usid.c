@@ -28,6 +28,10 @@
 
 #include <amlogic/efuse.h>
 
+extern bool is_nand_exist (void); // is nand exist
+extern bool is_emmc_exist (void); // is eMMC/TSD exist
+extern ssize_t uboot_key_read(char *keyname, char *keydata);
+
 #define USID_SIZE  1024               //max usid size
 
 static char usid_prefetch[USID_SIZE] = { 0x00 };
@@ -66,7 +70,7 @@ static int do_usid_prefetch(cmd_tbl_t * cmdtp, int flag, int argc, char * const 
 	run_command("secukey emmc",0);
 #endif
 
-#ifdef CONFIG_STORE_COMPATIBLE && defined(CONFIG_SECURITYKEY)
+#if defined(CONFIG_STORE_COMPATIBLE) && defined(CONFIG_SECURITYKEY)
     if (is_nand_exist()) {
         run_command("secukey nand",0);
     } else if (is_emmc_exist()) {
@@ -84,7 +88,7 @@ static int do_usid_prefetch(cmd_tbl_t * cmdtp, int flag, int argc, char * const 
 		printf("usid keys read from emmc success!\n");
 #endif
 
-#ifdef CONFIG_STORE_COMPATIBLE && defined(CONFIG_SECURITYKEY)
+#if defined(CONFIG_STORE_COMPATIBLE) && defined(CONFIG_SECURITYKEY)
     if (is_nand_exist()) {
 		printf("usid keys read from nand success!\n");
     } else if (is_emmc_exist()) {
@@ -111,7 +115,7 @@ static int do_usid_prefetch(cmd_tbl_t * cmdtp, int flag, int argc, char * const 
 			printf("emmc key read usid fail,usid valid\n");
 #endif
 
-#ifdef CONFIG_STORE_COMPATIBLE && defined(CONFIG_SECURITYKEY)
+#if defined(CONFIG_STORE_COMPATIBLE) && defined(CONFIG_SECURITYKEY)
             if (is_nand_exist()) {
                 printf("nand key read usid fail,usid valid\n");
             } else if (is_emmc_exist()) {
@@ -131,7 +135,7 @@ static int do_usid_prefetch(cmd_tbl_t * cmdtp, int flag, int argc, char * const 
 			printf("emmc usid read OK,write to bootargs now...\n");
 #endif
 
-#ifdef CONFIG_STORE_COMPATIBLE && defined(CONFIG_SECURITYKEY)
+#if defined(CONFIG_STORE_COMPATIBLE) && defined(CONFIG_SECURITYKEY)
             if (is_nand_exist()) {
                 printf("nand usid read OK,write to bootargs now...\n");
             } else if (is_emmc_exist()) {
@@ -148,7 +152,7 @@ static int do_usid_prefetch(cmd_tbl_t * cmdtp, int flag, int argc, char * const 
 			} 
 		}else {
 			efuseinfo_item_t info;
-			int efuse_ret;
+			int efuse_ret=-1;
 			char *argv[3]={"efuse","read","usid"};
 			printf("usid keys not in nand,read from efuse\n");
 			if((!strncmp(argv[1],"read",sizeof("read"))) &&  (!strncmp(argv[2],"usid",sizeof("usid")))){

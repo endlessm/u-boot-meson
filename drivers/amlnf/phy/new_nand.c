@@ -52,6 +52,7 @@ unsigned char pagelist_1ynm_hynix256[128] = {
 	0xDf, 0xe1, 0xE3, 0xE5, 0xE7, 0xE9, 0xEb, 0xEd,
 	0xEf, 0xf1, 0xF3, 0xF5, 0xF7, 0xF9, 0xFb, 0xFd,
 };
+#if 0
 #ifdef AML_NAND_UBOOT
 static unsigned char get_reboot_mode(void)
 {
@@ -82,7 +83,7 @@ static unsigned char get_reboot_mode(void)
 
 	return reboot_flag;
 }
-
+#endif
 #endif
 /*****************************HYNIX******************************************/
 
@@ -227,8 +228,9 @@ static int aml_nand_get_20nm_OTP_value(struct hw_controller *controller,  unsign
 }
 static int aml_nand_get_1ynm_OTP_value(struct hw_controller *controller,  unsigned char *buf,unsigned char chipnr)
 {
-	int i, j, k,m, retry_cnt_otp, total_reg_cnt, check_flag = 0;
-	unsigned char  *tmp_buf;
+	//int i, j, k,m, retry_cnt_otp, total_reg_cnt, 4 = 0;
+	int i, j, k,m;
+	//unsigned char  *tmp_buf;
 	struct read_retry_info *retry_info =  &(controller->retry_info);
 	uchar retry_value_sta[32] ={0};
 	memset(buf, 0, 528);
@@ -276,9 +278,11 @@ static int get_reg_value_formOTP_hynix(struct hw_controller *controller, unsigne
 	struct amlnand_chip *aml_chip = controller->aml_chip;
 	struct nand_flash *flash = &(aml_chip->flash);	
 	struct chip_operation *operation = &(aml_chip->operation);
-	struct read_retry_info *retry_info =  &(controller->retry_info);
-	int i, j, k, reg_cnt_otp, total_reg_cnt, check_flag = 0;
-	unsigned char *one_copy_buf, *tmp_buf;
+	//struct read_retry_info *retry_info =  &(controller->retry_info);
+	//int i, j, k, reg_cnt_otp, total_reg_cnt, check_flag = 0;
+	int check_flag = 0;
+	//unsigned char *one_copy_buf, *tmp_buf;
+	unsigned char *one_copy_buf;
 	int ret = 0;
 
 	if((flash->new_type != HYNIX_20NM_4GB) && (flash->new_type != HYNIX_20NM_8GB)&& (flash->new_type != HYNIX_1YNM_8GB))
@@ -300,7 +304,8 @@ static int get_reg_value_formOTP_hynix(struct hw_controller *controller, unsigne
 		goto error_exit1;
 	}
 
-	ret = operation->reset(aml_chip, chipnr);
+	ret = operation->reset(aml_chip, chipnr);
+
 	if(ret){
 		aml_nand_msg("reset chip failed chipnr:%d", chipnr);
 		ret = -NAND_BUSY_FAILURE;
@@ -409,7 +414,8 @@ static int get_reg_value_formOTP_hynix(struct hw_controller *controller, unsigne
 
 #endif
 
-	ret = operation->reset(aml_chip, chipnr);
+	ret = operation->reset(aml_chip, chipnr);
+
 	if(ret){
 		aml_nand_msg("reset chip failed chipnr:%d", chipnr);
 		ret = -NAND_BUSY_FAILURE;
@@ -464,11 +470,11 @@ error_exit0:
 static int readretry_init_hynix(struct hw_controller *controller)
 {
 	struct amlnand_chip *aml_chip = controller->aml_chip;
-	struct chip_operation *operation = &(aml_chip->operation);	
+	//struct chip_operation *operation = &(aml_chip->operation);	
 	struct nand_flash *flash = &(aml_chip->flash);	
-	struct chip_ops_para *ops_para = &(aml_chip->ops_para);
+	//struct chip_ops_para *ops_para = &(aml_chip->ops_para);
 	struct read_retry_info *retry_info =  &(controller->retry_info);
-	struct en_slc_info *slc_info =  &(controller->slc_info);
+	//struct en_slc_info *slc_info =  &(controller->slc_info);
 	int i, ret = 0;
 
 	//read from nand block 
@@ -572,6 +578,7 @@ static int readretry_handle_hynix(struct hw_controller *controller, unsigned cha
 	//cur_cnt++;
 	//retry_info->cur_cnt_lp[chipnr] = (cur_cnt > (retry_info->retry_cnt_lp -1)) ? 0 : cur_cnt;
 	retry_info->cur_cnt_lp[chipnr]++;
+	return 0;
 }
 
 static int readretry_set_def_val_hynix(struct hw_controller *controller, unsigned char chipnr)
@@ -703,8 +710,10 @@ static int enslc_exit_hynix(struct hw_controller *controller)
 static int set_reg_value_toshiba(struct hw_controller *controller,  unsigned char *buf, unsigned char *addr, 
 						unsigned char chipnr, unsigned char cnt)
 {
+#ifdef AML_NAND_DBG
 	struct amlnand_chip *aml_chip = controller->aml_chip;
-	struct nand_flash *flash = &(aml_chip->flash);	
+	struct nand_flash *flash = &(aml_chip->flash);
+#endif
 	struct read_retry_info *retry_info =  &(controller->retry_info);
 	int i, ret = 0;
 
@@ -753,8 +762,10 @@ static int set_reg_value_toshiba(struct hw_controller *controller,  unsigned cha
 //when ecc fail,set nand retry reg
 static int readretry_handle_toshiba(struct hw_controller *controller, unsigned char chipnr)
 {
+#ifdef AML_NAND_DBG
 	struct amlnand_chip *aml_chip = controller->aml_chip;
-	struct nand_flash *flash = &(aml_chip->flash);	
+	struct nand_flash *flash = &(aml_chip->flash);
+#endif
 	struct read_retry_info *retry_info =  &(controller->retry_info);
 	int cur_cnt, ret = 0;
 
@@ -765,8 +776,7 @@ static int readretry_handle_toshiba(struct hw_controller *controller, unsigned c
 
 	aml_nand_dbg("flash->new_type:%d, cur_cnt:%d", flash->new_type, cur_cnt);
 
-	ret = set_reg_value_toshiba(controller, &retry_info->reg_offs_val_lp[0][cur_cnt][0],
-								&retry_info->reg_addr_lp[0], chipnr, retry_info->reg_cnt_lp);
+	ret = set_reg_value_toshiba(controller, (unsigned char *)&retry_info->reg_offs_val_lp[0][cur_cnt][0], &retry_info->reg_addr_lp[0], chipnr, retry_info->reg_cnt_lp);
 	if(ret){
 		aml_nand_msg("set_reg_value_toshiba failed chipnr:%d", chipnr);
 		return -NAND_FAILED;
@@ -784,7 +794,7 @@ static int  readretry_exit_toshiba(struct hw_controller *controller, unsigned ch
 	struct nand_flash *flash = &(aml_chip->flash);	
 	struct read_retry_info *retry_info =  &(controller->retry_info);
 	struct chip_operation *operation = &(aml_chip->operation);
-	int cur_cnt, ret = 0,i;
+	int ret = 0,i;
 	uint8_t buf[5] = {0};
 	//if(flash->new_type != TOSHIBA_2XNM)
 	//	return NAND_SUCCESS;
@@ -827,7 +837,7 @@ static int set_reg_value_samsung(struct hw_controller *controller,  unsigned cha
 {
 	struct amlnand_chip *aml_chip = controller->aml_chip;
 	struct nand_flash *flash = &(aml_chip->flash);	
-	struct read_retry_info *retry_info =  &(controller->retry_info);
+	//struct read_retry_info *retry_info =  &(controller->retry_info);
 	int i, ret = 0;
 
 
@@ -877,7 +887,7 @@ static int readretry_handle_samsung(struct hw_controller *controller, unsigned c
 
 	aml_nand_dbg("flash->new_type:%d, cur_cnt:%d", flash->new_type, cur_cnt);
 
-	ret = set_reg_value_samsung(controller, &retry_info->reg_offs_val_lp[0][cur_cnt][0], \
+	ret = set_reg_value_samsung(controller, (unsigned char *)(&retry_info->reg_offs_val_lp[0][cur_cnt][0]), \
 								&retry_info->reg_addr_lp[0], chipnr, retry_info->reg_cnt_lp);
 	if(ret){
 		aml_nand_msg("set_reg_value_samsung failed chipnr:%d", chipnr);
@@ -895,8 +905,8 @@ static int  readretry_exit_samsung(struct hw_controller *controller, unsigned ch
 	struct amlnand_chip *aml_chip = controller->aml_chip;
 	struct nand_flash *flash = &(aml_chip->flash);	
 	struct read_retry_info *retry_info =  &(controller->retry_info);
-	struct chip_operation *operation = &(aml_chip->operation);
-	int cur_cnt, ret = 0;
+	//struct chip_operation *operation = &(aml_chip->operation);
+	int ret = 0;
 
 	if(flash->new_type != SUMSUNG_2XNM)
 		return NAND_SUCCESS;
@@ -910,7 +920,7 @@ static int  readretry_exit_samsung(struct hw_controller *controller, unsigned ch
 	aml_nand_dbg("samsung reatry exit");
 	memset(&retry_info->cur_cnt_lp[0], 0, MAX_CHIP_NUM);
 	
-	ret = set_reg_value_samsung(controller, &retry_info->reg_offs_val_lp[0][0][0], \
+	ret = set_reg_value_samsung(controller, (unsigned char *)(&retry_info->reg_offs_val_lp[0][0][0]), \
 								&retry_info->reg_addr_lp[0], chipnr, retry_info->reg_cnt_lp);
 	if(ret){
 		aml_nand_msg("set_reg_value_samsung failed chipnr:%d", chipnr);
@@ -927,7 +937,7 @@ static int set_reg_value_micron(struct hw_controller *controller,  unsigned char
 {
 	struct amlnand_chip *aml_chip = controller->aml_chip;
 	struct nand_flash *flash = &(aml_chip->flash);	
-	struct read_retry_info *retry_info =  &(controller->retry_info);
+	//struct read_retry_info *retry_info =  &(controller->retry_info);
 	int i, ret = 0;
 
 
@@ -981,7 +991,7 @@ static int readretry_handle_micron(struct hw_controller *controller, unsigned ch
 
 	aml_nand_dbg("flash->new_type:%d, cur_cnt:%d", flash->new_type, cur_cnt);
 
-	ret = set_reg_value_micron(controller, &retry_info->reg_offs_val_lp[0][cur_cnt][0], \
+	ret = set_reg_value_micron(controller, (unsigned char *)(&retry_info->reg_offs_val_lp[0][cur_cnt][0]), \
 								&retry_info->reg_addr_lp[0], chipnr, retry_info->reg_cnt_lp);
 	if(ret){
 		aml_nand_msg("set_reg_value_samsung failed chipnr:%d", chipnr);
@@ -1000,8 +1010,8 @@ static int  readretry_exit_micron(struct hw_controller *controller, unsigned cha
 	struct amlnand_chip *aml_chip = controller->aml_chip;
 	struct nand_flash *flash = &(aml_chip->flash);	
 	struct read_retry_info *retry_info =  &(controller->retry_info);
-	struct chip_operation *operation = &(aml_chip->operation);
-	int cur_cnt, ret = 0;
+	//struct chip_operation *operation = &(aml_chip->operation);
+	int ret = 0;
 
 	if(flash->new_type != MICRON_20NM)
 		return NAND_SUCCESS;
@@ -1046,7 +1056,7 @@ static int readretry_handle_intel(struct hw_controller *controller, unsigned cha
 		aml_nand_msg("set_reg_value_intel failed chipnr:%d", chipnr);
 		return -NAND_FAILED;
 	}	
-	ret = set_reg_value_micron(controller, &retry_info->reg_offs_val_lp[0][cur_cnt][0], \ 
+	ret = set_reg_value_micron(controller, (unsigned char *)(&retry_info->reg_offs_val_lp[0][cur_cnt][0]), \
 								&retry_info->reg_addr_lp[0], chipnr, retry_info->reg_cnt_lp);
 	if(ret){
 		aml_nand_msg("set_reg_value_intel failed chipnr:%d", chipnr);
@@ -1066,8 +1076,8 @@ static int  readretry_exit_intel(struct hw_controller *controller, unsigned char
 	struct amlnand_chip *aml_chip = controller->aml_chip;
 	struct nand_flash *flash = &(aml_chip->flash);	
 	struct read_retry_info *retry_info =  &(controller->retry_info);
-	struct chip_operation *operation = &(aml_chip->operation);
-	int cur_cnt, ret = 0;
+	//struct chip_operation *operation = &(aml_chip->operation);
+	int ret = 0;
 
 	if(flash->new_type != INTEL_20NM)
 		return NAND_SUCCESS;
@@ -1096,11 +1106,11 @@ static int  readretry_exit_intel(struct hw_controller *controller, unsigned char
 /***********************************SANDISK************************************/
 static int  readretry_init_sandisk(struct hw_controller *controller)
 {
-	struct amlnand_chip *aml_chip = controller->aml_chip;
-	struct nand_flash *flash = &(aml_chip->flash);	
-	struct read_retry_info *retry_info =  &(controller->retry_info);
+	//struct amlnand_chip *aml_chip = controller->aml_chip;
+	//struct nand_flash *flash = &(aml_chip->flash);	
+	//struct read_retry_info *retry_info =  &(controller->retry_info);
 	unsigned char reg_addr_init[10];
-	int i, j, ret = 0;
+	int i, j;
 
 	reg_addr_init[0] = 0x04;
 	reg_addr_init[1] = 0x05;
@@ -1139,9 +1149,9 @@ static int  readretry_init_sandisk(struct hw_controller *controller)
 static int set_reg_value_sandisk(struct hw_controller *controller,  unsigned char *buf, unsigned char *addr, 
 						unsigned char chipnr, unsigned char cnt)
 {
-	struct amlnand_chip *aml_chip = controller->aml_chip;
-	struct nand_flash *flash = &(aml_chip->flash);	
-	struct read_retry_info *retry_info =  &(controller->retry_info);
+	//struct amlnand_chip *aml_chip = controller->aml_chip;
+	//struct nand_flash *flash = &(aml_chip->flash);	
+	//struct read_retry_info *retry_info =  &(controller->retry_info);
 	int i, ret = 0;
 
 
@@ -1187,9 +1197,9 @@ static int set_reg_value_sandisk(struct hw_controller *controller,  unsigned cha
 static int set_a19_reg_value_sandisk(struct hw_controller *controller,  unsigned char *buf, unsigned char addr, 
 						unsigned char chipnr, unsigned char cnt)
 {
-	struct amlnand_chip *aml_chip = controller->aml_chip;
-	struct nand_flash *flash = &(aml_chip->flash);	
-	struct read_retry_info *retry_info =  &(controller->retry_info);
+	//struct amlnand_chip *aml_chip = controller->aml_chip;
+	//struct nand_flash *flash = &(aml_chip->flash);	
+	//struct read_retry_info *retry_info =  &(controller->retry_info);
 	int i, ret = 0;
 
 
@@ -1233,7 +1243,7 @@ static int readretry_handle_a19_sandisk(struct hw_controller *controller, unsign
 	struct nand_flash *flash = &(aml_chip->flash);	
 	struct read_retry_info *retry_info =  &(controller->retry_info);
 	unsigned pages_per_blk, tmp_page, pages_per_blk_shift;
-	int cur_cnt,  ret = 0;
+	int cur_cnt;
 	int page_info = 0;
 	//if(flash->new_type != SANDISK_19NM)
 	//	return NAND_SUCCESS;
@@ -1248,7 +1258,7 @@ static int readretry_handle_a19_sandisk(struct hw_controller *controller, unsign
 		page_info =  1;
 
 	cur_cnt = retry_info->cur_cnt_up[chipnr];
-	set_a19_reg_value_sandisk(controller, &retry_info->reg_offs_val_lp[page_info][cur_cnt][0], retry_info->reg_addr_lp[0], \
+	set_a19_reg_value_sandisk(controller, (unsigned char *)(&retry_info->reg_offs_val_lp[page_info][cur_cnt][0]), retry_info->reg_addr_lp[0], \
 									chipnr, retry_info->reg_cnt_lp);
 	controller->cmd_ctrl(controller, NAND_CMD_SANDISK_DSP_OFF, NAND_CTRL_CLE);
 	NFC_SEND_CMD_IDLE(controller->chip_selected, 5);
@@ -1270,10 +1280,10 @@ static int readretry_handle_a19_sandisk(struct hw_controller *controller, unsign
 static int  readretry_exit_a19_sandisk(struct hw_controller *controller, unsigned char chipnr)
 {
 	struct amlnand_chip *aml_chip = controller->aml_chip;
-	struct nand_flash *flash = &(aml_chip->flash);	
+	//struct nand_flash *flash = &(aml_chip->flash);	
 	struct read_retry_info *retry_info =  &(controller->retry_info);
 	struct chip_operation *operation = &(aml_chip->operation);
-	int cur_cnt, ret = 0;
+	int ret = 0;
 	uint8_t buf[4] = {0};
 	//if(flash->new_type != SANDISK_19NM)
 	//	return NAND_SUCCESS;
@@ -1326,7 +1336,7 @@ static int readretry_handle_sandisk(struct hw_controller *controller, unsigned c
 		
 		aml_nand_dbg("upper page flash->new_type:%d, cur_case:%d", flash->new_type, cur_cnt);
 		
-		ret = set_reg_value_sandisk(controller, &retry_info->reg_offs_val_up[0][cur_cnt][0], &retry_info->reg_addr_up[0], \
+		ret = set_reg_value_sandisk(controller, (unsigned char *)(&retry_info->reg_offs_val_up[0][cur_cnt][0]), &retry_info->reg_addr_up[0], \
 									chipnr, retry_info->reg_cnt_up);
 		if(ret){
 			aml_nand_msg("set_reg_value_sandisk failed chipnr:%d", chipnr);
@@ -1341,7 +1351,7 @@ static int readretry_handle_sandisk(struct hw_controller *controller, unsigned c
 		
 		aml_nand_dbg("low page flash->new_type:%d, cur_case:%d", flash->new_type, cur_cnt);
 		
-		ret = set_reg_value_sandisk(controller, &retry_info->reg_offs_val_lp[0][cur_cnt][0], &retry_info->reg_addr_lp[0], chipnr, retry_info->reg_cnt_lp);
+		ret = set_reg_value_sandisk(controller, (unsigned char *)(&retry_info->reg_offs_val_lp[0][cur_cnt][0]), &retry_info->reg_addr_lp[0], chipnr, retry_info->reg_cnt_lp);
 		if(ret){
 			aml_nand_msg("set_reg_value_sandisk failed chipnr:%d", chipnr);
 			return -NAND_FAILED;
@@ -1359,10 +1369,10 @@ static int readretry_handle_sandisk(struct hw_controller *controller, unsigned c
 static int  readretry_exit_sandisk(struct hw_controller *controller, unsigned char chipnr)
 {
 	struct amlnand_chip *aml_chip = controller->aml_chip;
-	struct nand_flash *flash = &(aml_chip->flash);	
+	//struct nand_flash *flash = &(aml_chip->flash);	
 	struct read_retry_info *retry_info =  &(controller->retry_info);
 	struct chip_operation *operation = &(aml_chip->operation);
-	int cur_cnt, ret = 0;
+	int ret = 0;
 
 	//if(flash->new_type != SANDISK_19NM)
 	//	return NAND_SUCCESS;
@@ -1403,10 +1413,10 @@ static int  readretry_exit_sandisk(struct hw_controller *controller, unsigned ch
 
 static int enslc_enter_sandisk(struct hw_controller *controller)
 {
-	struct amlnand_chip *aml_chip = controller->aml_chip;
-	struct nand_flash *flash = &(aml_chip->flash);	
-	struct en_slc_info *slc_info =  &(controller->slc_info);
-	int i;
+	//struct amlnand_chip *aml_chip = controller->aml_chip;
+	//struct nand_flash *flash = &(aml_chip->flash);	
+	//struct en_slc_info *slc_info =  &(controller->slc_info);
+	//int i;
 
 	//if(flash->new_type != SANDISK_19NM)
 	//	return NAND_SUCCESS;
@@ -1503,7 +1513,7 @@ static int enslc_enter_sandisk(struct hw_controller *controller)
 			slc_info->init = enslc_init_hynix;	
 			slc_info->enter = enslc_enter_hynix;
 			slc_info->exit = enslc_exit_hynix;
-			slc_info->pagelist = &pagelist_hynix256;
+			slc_info->pagelist = (unsigned char *)&pagelist_hynix256;
 			break;
 			
 		case HYNIX_26NM_8GB:	//hynix 26nm 8GB
@@ -1570,7 +1580,7 @@ static int enslc_enter_sandisk(struct hw_controller *controller)
 			slc_info->init = enslc_init_hynix;	
 			slc_info->enter = enslc_enter_hynix;
 			slc_info->exit = enslc_exit_hynix;
-			slc_info->pagelist = &pagelist_hynix256;
+			slc_info->pagelist = (unsigned char *)&pagelist_hynix256;
 
 			break;
 			
@@ -1612,7 +1622,7 @@ static int enslc_enter_sandisk(struct hw_controller *controller)
 			slc_info->init = enslc_init_hynix;	
 			slc_info->enter = enslc_enter_hynix;
 			slc_info->exit = enslc_exit_hynix;
-			slc_info->pagelist = &pagelist_hynix256;
+			slc_info->pagelist = (unsigned char *)&pagelist_hynix256;
 			break;
 
 		case HYNIX_20NM_8GB:	//hynix 20nm 8GB
@@ -1653,7 +1663,7 @@ static int enslc_enter_sandisk(struct hw_controller *controller)
 			slc_info->init = enslc_init_hynix;	
 			slc_info->enter = enslc_enter_hynix;
 			slc_info->exit = enslc_exit_hynix;
-			slc_info->pagelist = &pagelist_hynix256;
+			slc_info->pagelist = (unsigned char *)&pagelist_hynix256;
 			break;
 			
 		case HYNIX_1YNM_8GB:	//hynix 20nm 8GB
@@ -1670,7 +1680,7 @@ static int enslc_enter_sandisk(struct hw_controller *controller)
 			slc_info->init = enslc_init_hynix;	
 			slc_info->enter = enslc_enter_hynix;
 			slc_info->exit = enslc_exit_hynix;
-			slc_info->pagelist = &pagelist_1ynm_hynix256;
+			slc_info->pagelist = (unsigned char *)&pagelist_1ynm_hynix256;
 			break;			
 			case TOSHIBA_2XNM:	//toshiba 24nm/19nm TOSHIBA_2XNM
 				//read retry

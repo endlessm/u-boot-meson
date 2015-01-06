@@ -10,6 +10,7 @@
 extern struct partitions *part_table;
 struct mmc_config * mmc_config_of =NULL;
 bool is_partition_checked = false;
+extern struct mmc *find_mmc_device_by_port (unsigned sdio_port);
 
 #define PARTITION_ELEMENT(na, sz, flags) {.name = na, .size = sz, .mask_flags = flags,}
 struct partitions emmc_partition_table[]={
@@ -113,7 +114,7 @@ int mmc_get_partition_table (struct mmc *mmc)
 	for (i=0; i < ARRAY_SIZE(emmc_partition_table); i++) {
 #if MESON_CPU_TYPE < MESON_CPU_TYPE_MESON8B	//force emmc boot     
         if((!strncmp(emmc_partition_table[i].name, MMC_BOOT_NAME, MAX_MMC_PART_NAME_LEN)) // eMMC boot partition
-                && (!POR_EMMC_BOOT())) { // not eMMC boot, skip
+                && ((device_boot_flag!=EMMC_BOOT_FLAG))) { // not eMMC boot, skip
             printf("Not emmc boot, POR_BOOT_VALUE=%d\n", POR_BOOT_VALUE);
             continue;
         }
@@ -128,9 +129,9 @@ int mmc_get_partition_table (struct mmc *mmc)
             if (!strncmp(part_ptr[part_num-1].name, MMC_BOOT_NAME, MAX_MMC_PART_NAME_LEN)) { // eMMC boot partition
                 resv_size = MMC_BOOT_PARTITION_RESERVED;
 #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8B                
-                if(!POR_EMMC_BOOT()){  //for spi boot case
-                    part_ptr[part_num].name[strlen(MMC_BOOT_NAME)] = "e";
-                    part_ptr[part_num].name[strlen(MMC_BOOT_NAME)+1] = "\0";
+                if((device_boot_flag!=EMMC_BOOT_FLAG)){  //for spi boot case
+                    part_ptr[part_num].name[strlen(MMC_BOOT_NAME)] = 'e';
+                    part_ptr[part_num].name[strlen(MMC_BOOT_NAME)+1] = '\0';
 
                     printf("change MMC BOOT NAME into 'bootloadere' for none emmc boot case, POR_BOOT_VALUE=%d\n", POR_BOOT_VALUE);
                 }
@@ -209,7 +210,7 @@ int mmc_get_partition_table (struct mmc *mmc)
         }
 		part_num++;
 	}
-	strncpy(mmc_config_of->version, MMC_UBOOT_VERSION, MAX_MMC_PART_NAME_LEN);
+	strncpy((char *)(mmc_config_of->version), MMC_UBOOT_VERSION, MAX_MMC_PART_NAME_LEN);
 	mmc_config_of->part_num = part_num + 1;
 	mmc_config_of->private_data = mmc;
 
@@ -245,7 +246,7 @@ int mmc_partition_tbl_checksum_calc (struct partitions *part, int part_num)
 
 int mmc_write_partition_tbl (struct mmc *mmc, struct mmc_config *mmc_cfg, struct mmc_partitions_fmt *pt_fmt)
 {
-    int ret=0, start_blk, size, blk_cnt, i;
+    int ret=0, start_blk, size, blk_cnt=0;
     char *buf, *src;
     struct partitions *pp;
 
@@ -314,7 +315,7 @@ exit_err:
 
 int mmc_read_partition_tbl (struct mmc *mmc, struct mmc_partitions_fmt *pt_fmt)
 {
-    int ret=0, start_blk, size, blk_cnt;
+    int ret=0, start_blk, size, blk_cnt=0;
     char *buf, *dst;
 	struct partitions *pp;
 
@@ -396,7 +397,7 @@ int mmc_partition_verify (struct mmc_config * mmc_cfg, struct mmc_partitions_fmt
     // printf("version: %s\n", mmc_cfg->version);
     // show_mmc_patition(mmc_cfg->partitions, mmc_cfg->part_num);
 
-    if ((strncmp(mmc_cfg->version, pt_fmt->version, sizeof(pt_fmt->version)) == 0x00)
+    if ((strncmp((const char *)(mmc_cfg->version), (const char *)(pt_fmt->version), sizeof(pt_fmt->version)) == 0x00)
             && (mmc_cfg->part_num == pt_fmt->part_num)) {
         pp1 = mmc_cfg->partitions;
         pp2 = pt_fmt->partitions;
@@ -477,9 +478,9 @@ int find_dev_num_by_partition_name (char *name)
     }
 
     if (port > 0) {
-        mmc = find_mmc_device_by_port(port);
+        mmc = find_mmc_device_by_port((unsigned)port);
         if (!mmc) { // not found yet
-            mmc = find_mmc_device_by_port(port_xc);
+            mmc = find_mmc_device_by_port((unsigned)port_xc);
         }
 
         if (!mmc) { // not found

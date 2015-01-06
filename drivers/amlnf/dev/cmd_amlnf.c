@@ -12,10 +12,26 @@
 *****************************************************************/
 
 #include "../include/amlnf_dev.h"
+extern void amlnf_get_chip_size(uint64_t *size);
+#ifdef AML_NAND_UBOOT
+extern void amlnf_disprotect(uchar * name);
+extern struct amlnand_phydev *aml_phy_get_dev(char * name);
+extern struct amlnf_dev* aml_nftl_get_dev(char * name);
+#endif
+extern void amlnf_dump_chipinfo(void);
+extern int roomboot_nand_read(struct amlnand_phydev *phydev);
+extern int roomboot_nand_write(struct amlnand_phydev *phydev);
+extern int nand_read_ops(struct amlnand_phydev *phydev);
+extern int nand_write_ops(struct amlnand_phydev *phydev);
+extern int nand_erase(struct amlnand_phydev *phydev);
+extern void amlnand_dump_page(struct amlnand_phydev *phydev);
+extern int  amlnf_erase_ops(uint64_t off, uint64_t erase_len,unsigned char scrub_flag);
+extern int  amlnf_markbad_reserved_ops(uint32_t start_blk);
 
 extern int amlnf_init(unsigned char flag);
+extern int amlnf_exit(void);
 extern void amldev_dumpinfo(struct amlnand_phydev *phydev);
-static int plane_mode = 0;
+//static int plane_mode = 0;
 struct amlnf_dev * nftl_device = NULL;
 struct amlnand_phydev *phy_device=NULL;
 static int nand_protect = 1;
@@ -219,16 +235,18 @@ DATA_FLUSH:
 }
 
 
-int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
+int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
 	struct amlnand_phydev *phydev = NULL;
 	struct phydev_ops  * devops = NULL;
 	struct amlnf_dev *nftl_dev;
 
 	uint64_t addr, off, size, chipsize, erase_addr, erase_len, erase_off;
-	unsigned erase_shift, write_shift, writesize, erasesize, pages_per_blk;
-	unsigned char read, devread, nfread_flag;
-	int  dev, start_secor, length,  ret = 0;
+	//unsigned erase_shift, write_shift, writesize, erasesize, pages_per_blk;
+	//unsigned char read, devread, nfread_flag;
+	//int  dev, start_secor, length,  ret = 0;
+	unsigned char devread, nfread_flag;
+	int  start_secor, length,  ret = 0;
 	char *cmd,*protect_name, *dev_name;
     uint32_t *markbad_reserved_addr = NULL;
 
@@ -241,13 +259,13 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 	 amlnf_get_chip_size(&chipsize);
 
 	if(strcmp(cmd, "env") == 0){
-		aml_nand_dbg("env relocate");	
+		aml_nand_dbg("env relocate");
 		env_relocate ();
 		return 0;
 	}
 	if(strcmp(cmd, "disprotect") == 0){
 		protect_name = argv[2];
-		amlnf_disprotect(protect_name);
+		amlnf_disprotect((uchar *)protect_name);
 		return 0 ;
 	}
 	if(strcmp(cmd, "exit") == 0){
@@ -300,13 +318,13 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 
 		aml_nand_dbg("\nNAND %s: addr:%llx ", nfread_flag ? "read_byte" : "write_byte", addr);
 
-		if (arg_off_size(argc - 4, argv + 4, 0x0, &off, &size) != 0)
+		if (arg_off_size(argc - 4, (char **)(argv + 4), 0x0, &off, &size) != 0)
 			goto usage;
 
 	   if(nfread_flag){
-	        ret = amlnand_read(nftl_dev,addr,off,size);
+	        ret = amlnand_read(nftl_dev,(unsigned char *)(int)addr,off,size);
 	    }else{
-	        ret = amlnand_write(nftl_dev,addr,off,size);
+	        ret = amlnand_write(nftl_dev,(unsigned char *)(int)addr,off,size);
 	    }
 
         aml_nand_dbg(" 0x%llx bytes %s : %s", size,nfread_flag ? "read_byte" : "write_byte", ret ? "ERROR" : "OK");
@@ -335,9 +353,9 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		addr = (ulong)simple_strtoul(argv[3], NULL, 16);
 		
 		nfread_flag = strncmp(cmd, "read", 4) == 0; /* 1 = read, 0 = write */	
-		printf("\nNAND %s: addr:%lx \n", nfread_flag ? "read" : "write", addr);
+		printf("\nNAND %s: addr:%lx \n", nfread_flag ? "read" : "write", (long unsigned int)addr);
 		
-		if (arg_off_size(argc - 4, argv + 4, 0x0, &off, &size) != 0)
+		if (arg_off_size(argc - 4, (char **)(argv + 4), 0x0, &off, &size) != 0)
 			goto usage;
 
 		if (off % 512){
@@ -357,13 +375,13 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		aml_nand_dbg("length_sector =%d",length);
 		
 		if(nfread_flag){
-			ret = nftl_dev->read_sector(nftl_dev, start_secor, length, addr);
+			ret = nftl_dev->read_sector(nftl_dev, start_secor, length, (unsigned char *)(int)addr);
 			if(ret < 0){
 				aml_nand_dbg("nftl read %d sector  failed", length);
 				return -1;
 			}
 		}else{
-			ret = nftl_dev->write_sector(nftl_dev, start_secor, length, addr);
+			ret = nftl_dev->write_sector(nftl_dev, start_secor, length, (unsigned char *)(int)addr);
 			if(ret < 0){
 				aml_nand_dbg("nftl write %d sector  failed", length);
 				return -1;
@@ -405,7 +423,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		aml_nand_dbg("nftl_dev->name =%s",nftl_dev->name );
 		
 		addr = (ulong)simple_strtoul(argv[3], NULL, 16);
-		* (volatile uint64_t *)addr =  nftl_dev->size_sector;
+		* (volatile uint64_t *)(unsigned int)addr =  nftl_dev->size_sector;
 		aml_nand_dbg("nftl_dev->size_sector =%llx",nftl_dev->size_sector);
 		aml_nand_dbg("*addr = %llx",(* (volatile uint64_t *)addr));
 		
@@ -453,7 +471,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		aml_nand_dbg("phydev->name =%s",phydev->name);		
 		amldev_dumpinfo(phydev);
 
-		if (arg_off_size(argc - 3, argv + 3, phydev->size, &off, &size) != 0)
+		if (arg_off_size(argc - 3, (char **)(argv + 3), phydev->size, &off, &size) != 0)
 			return -1;
 
 		memset(devops, 0x0, sizeof(struct phydev_ops));
@@ -461,7 +479,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		devops->addr = off;
 		devops->len = size;
 		devops->mode = NAND_HW_ECC;
-		devops->datbuf = (unsigned char *)addr;
+		devops->datbuf = (unsigned char *)(int)addr;
 			
 		if(nfread_flag){
 			ret = roomboot_nand_read(phydev);
@@ -508,9 +526,9 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		aml_nand_dbg("addr = %llx",addr);
 
 		devread = strncmp(cmd, "devread", 7) == 0; /* 1 = devread, 0 = devwrite */	
-		printf("\nNAND %s: addr:%lx \n", devread ? "devread" : "devwrite", addr);
+		printf("\nNAND %s: addr:%lx \n", devread ? "devread" : "devwrite", (long unsigned int)addr);
 		
-		if (arg_off_size(argc - 4, argv + 4, chipsize, &off, &size) != 0)
+		if (arg_off_size(argc - 4, (char **)(argv + 4), chipsize, &off, &size) != 0)
 			goto usage;
 		
 		phydev = aml_phy_get_dev(dev_name);
@@ -524,7 +542,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		devops->addr = off;
 		devops->len = size;
 		devops->mode = NAND_HW_ECC;
-		devops->datbuf = (unsigned char *)addr;
+		devops->datbuf = (unsigned char *)(int)addr;
 		
 		if(devread){		
 			ret = nand_read_ops(phydev);	
@@ -587,7 +605,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 			if ((strcmp(cmd, "deverase") == 0) && (argc < 3)){
 					goto usage;
 			}
-			if ((arg_off_size(argc - 3, argv + 3, phydev->size, &off, &size) != 0)){
+			if ((arg_off_size(argc - 3, (char **)(argv + 3), phydev->size, &off, &size) != 0)){
 				goto usage;
 			}
 			aml_nand_dbg("off:0x%llx size:%llx.\n", off, size);
@@ -600,7 +618,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		
 		if (erase_len < phydev->erasesize){				
 			printf("Warning: Erase size 0x%08x smaller than one "	\
-				   "erase block 0x%08x\n",erase_len, phydev->erasesize);
+				   "erase block 0x%08x\n",(unsigned int)erase_len, phydev->erasesize);
 			printf("		 Erasing 0x%08x instead\n", phydev->erasesize);
 			erase_len = phydev->erasesize;
 		}
@@ -659,7 +677,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		addr = (ulong)simple_strtoul(argv[3], NULL, 16);
 		aml_nand_dbg("addr = %llx",addr);
 		
-		if (arg_off_size(argc - 4, argv + 4, chipsize, &off, &size) != 0)
+		if (arg_off_size(argc - 4, (char **)(argv + 4), chipsize, &off, &size) != 0)
 			goto usage;
 		
 		phydev = aml_phy_get_dev(dev_name);
@@ -673,7 +691,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		devops->addr = off;
 		devops->len = phydev->writesize;
 		devops->oobbuf = NULL;
-		devops->datbuf = (unsigned char *)addr;
+		devops->datbuf = (unsigned char *)(int)addr;
 		devops->mode = NAND_SOFT_ECC;
 
 		amlnand_dump_page(phydev);
@@ -682,8 +700,8 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 	if((strcmp(cmd, "scrub") == 0) ||(strcmp(cmd, "erase") == 0) ){
 		
 		int scrub_flag = !strncmp(cmd, "scrub",5);
-		int percent=0;
-		int percent_complete = -1;
+		//int percent=0;
+		//int percent_complete = -1;
 		if (argc < 2){
 			goto usage;
 		}
@@ -729,7 +747,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 			printf("whole dev.\n");
 		}else{
 
-			if ((arg_off_size(argc - 2, argv + 2, chipsize, &off, &size) != 0)){
+			if ((arg_off_size(argc - 2, (char **)(argv + 2), chipsize, &off, &size) != 0)){
 				goto usage;
 			}		
 			erase_addr =erase_off= off;
@@ -773,7 +791,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 	
 		devops = &(phydev->ops);
 
-		if ((arg_off_size(argc - 3, argv + 3, phydev->size, &off, &size) != 0)){
+		if ((arg_off_size(argc - 3, (char **)(argv + 3), phydev->size, &off, &size) != 0)){
 			goto usage;
 		}
 		aml_nand_dbg("off:0x%llx size:%llx.\n", off, size);
@@ -786,7 +804,7 @@ int do_amlnfphy(cmd_tbl_t * cmdtp, int flag, int argc, char *argv[])
 		
 		if (erase_len < phydev->erasesize){				
 			printf("Warning: markbad size 0x%08x smaller than one "	\
-				   "block 0x%08x\n",erase_len, phydev->erasesize);
+				   "block 0x%08x\n",(unsigned int)erase_len, phydev->erasesize);
 			printf("		 markbad 0x%08x instead\n", phydev->erasesize);
 			erase_len = phydev->erasesize;
 		}

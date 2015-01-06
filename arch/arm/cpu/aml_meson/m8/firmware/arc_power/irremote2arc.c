@@ -123,12 +123,14 @@ void resume_remote_register(void)
 
 static int ir_remote_init_32k_mode(void)
 {
-    unsigned int status,data_value;
+    //volatile unsigned int status,data_value;
     int val = readl(P_AO_RTI_PIN_MUX_REG);
     writel((val  | (1<<0)), P_AO_RTI_PIN_MUX_REG);
     set_remote_mode(DECODEMODE_NEC);
-    status = readl(P_AO_MF_IR_DEC_STATUS);
-    data_value = readl(P_AO_MF_IR_DEC_FRAME);
+    //status = readl(P_AO_MF_IR_DEC_STATUS);
+    readl(P_AO_MF_IR_DEC_STATUS);
+    //data_value = readl(P_AO_MF_IR_DEC_FRAME);
+    readl(P_AO_MF_IR_DEC_FRAME);
 
     //step 2 : request nec_remote irq  & enable it
     return 0;

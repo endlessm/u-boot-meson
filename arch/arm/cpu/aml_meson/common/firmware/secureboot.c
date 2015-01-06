@@ -32,15 +32,15 @@ int load_secureos(void)
 	unsigned *psecureargs = NULL;
 
 	psecureargs = (unsigned*)(AHB_SRAM_BASE + READ_SIZE-SECUREARGS_ADDRESS_IN_SRAM);
-	*psecureargs = NULL;	
+	*psecureargs = (unsigned)NULL;	
 #ifdef CONFIG_MESON_SECUREARGS	
 #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8)	
 	if(IS_MESON_M8M2_CPU)
-		*psecureargs = __secureargs_m8m2;
+		*psecureargs = (unsigned)__secureargs_m8m2;
 	else
-		*psecureargs = __secureargs_m8;
+		*psecureargs = (unsigned)__secureargs_m8;
 #else
-	*psecureargs = __secureargs;
+	*psecureargs = (unsigned)__secureargs;
 #endif		
 #endif
 

@@ -23,7 +23,7 @@ extern void icache_disable (void);
 #endif
 
 	
-extern void clean_invalidable_cache();
+extern void clean_invalidable_cache(void);
 void start_arcboot_ucl(void)
 {
 	typedef void (* JumpAddr)(void);	

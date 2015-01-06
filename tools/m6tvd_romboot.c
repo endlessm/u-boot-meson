@@ -43,7 +43,7 @@ int m6tvd_write(FILE * fp_spl,FILE * fp_in ,FILE * fp_out)
     int nINLen = ftell(fp_in);
     nINLen = (nINLen + 0xF ) & (~0xF);
     fseek(fp_in,0,SEEK_SET);
-    unsigned int * pAUINF = (int *)(buf+(AML_UBOOT_SINFO_OFFSET>>1));
+    unsigned int * pAUINF = (unsigned int *)(buf+(AML_UBOOT_SINFO_OFFSET>>1));
     *pAUINF++ = READ_SIZE;  //32KB or 64KB
     *pAUINF   = nINLen+READ_SIZE;
     #undef AML_UBOOT_SINFO_OFFSET //for env clean up
@@ -70,6 +70,8 @@ int m6tvd_write(FILE * fp_spl,FILE * fp_in ,FILE * fp_out)
 	#define AML_M6TVD_SPL_SIZE_ID   (AML_M6TVD_SECURE_BOOT_ID_32KBSPL)
 #endif
 
+	#undef  AML_M6TVD_AML_RSA_STAGE
+	
 #ifdef CONFIG_AML_SECU_BOOT_V2_2RSA	
 	#define AML_M6TVD_AML_RSA_STAGE (AML_RSA_STAGE_2_0)
 #else
@@ -118,10 +120,10 @@ int m6tvd_write(FILE * fp_spl,FILE * fp_in ,FILE * fp_out)
 	pchk_blk->secure.nSkippedLen = AML_M6TVD_SPL_READ_SIZE;
 
 	struct tm ti, *tmx;
-	time(&ti);
-	tmx= (struct tm *)localtime(&ti);
+	time((time_t*)&ti);
+	tmx= (struct tm *)localtime((time_t*)&ti);
 	//YYYY/MM/DD HH:MM:SS
-	sprintf(pchk_blk->szTmCreate,"%04d\/%02d\/%02d %02d:%02d:%02d",
+	sprintf((char*)pchk_blk->szTmCreate,"%04d/%02d/%02d %02d:%02d:%02d",
 		tmx->tm_year+1900,tmx->tm_mon+1,tmx->tm_mday,tmx->tm_hour,tmx->tm_min,tmx->tm_sec);
 
 	memcpy(pchk_blk->secure.szTmCreate,pchk_blk->szTmCreate,24);
@@ -191,6 +193,8 @@ int m6tvd_write_crypto(FILE * fp_spl,FILE * fp_in ,FILE * fp_out)
 	#define AML_M6TVD_SPL_SIZE_ID   (AML_M6TVD_SECURE_BOOT_ID_32KBSPL)
 #endif
 
+	#undef AML_M6TVD_AML_RSA_STAGE
+
 #ifdef CONFIG_AML_SECU_BOOT_V2_2RSA	
 	#define AML_M6TVD_AML_RSA_STAGE (AML_RSA_STAGE_4_0)
 #else
@@ -239,10 +243,10 @@ int m6tvd_write_crypto(FILE * fp_spl,FILE * fp_in ,FILE * fp_out)
 	pchk_blk->secure.nSkippedLen = AML_M6TVD_SPL_READ_SIZE;
 
 	struct tm ti, *tmx;
-	time(&ti);
-	tmx= (struct tm *)localtime(&ti);
+	time((time_t*)&ti);
+	tmx= (struct tm *)localtime((time_t*)&ti);
 	//YYYY/MM/DD HH:MM:SS
-	sprintf(pchk_blk->szTmCreate,"%04d\/%02d\/%02d %02d:%02d:%02d",
+	sprintf((char*)pchk_blk->szTmCreate,"%04d/%02d/%02d %02d:%02d:%02d",
 		tmx->tm_year+1900,tmx->tm_mon+1,tmx->tm_mday,tmx->tm_hour,tmx->tm_min,tmx->tm_sec);
 
 	memcpy(pchk_blk->secure.szTmCreate,pchk_blk->szTmCreate,24);

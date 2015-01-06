@@ -4,7 +4,11 @@
 #define CONFIG_MACH_MESON8_M201  // generate M8 M201 machid number
 
 #define CONFIG_POWER_SPL
+#ifdef CONFIG_M201_COSTDOWN
+#define CONFIG_PWM_VDDEE_VOLTAGE            1100   //VDDEE voltage when boot, must have
+#else
 #define CONFIG_PWM_VDDEE_VOLTAGE            1050   //VDDEE voltage when boot, must have
+#endif
 #define CONFIG_PWM_VDDEE_SUSPEND_VOLTAGE    860	 //VDDEE voltage when suspend, must have
 #define CONFIG_IR_REMOTE_WAKEUP 1
 #define CONFIG_SECURITYKEY
@@ -48,12 +52,23 @@
 #define CONFIG_CMD_PWM  1
 
 //Enable storage devices
+#define CONFIG_CMD_CPU_TEMP
 #define CONFIG_CMD_NAND  1
 #define CONFIG_VIDEO_AML 1
 #define CONFIG_CMD_BMP 1
 #define CONFIG_VIDEO_AMLTVOUT 1
 #define CONFIG_AML_HDMI_TX  1
 #define CONFIG_OSD_SCALE_ENABLE 1
+
+#if defined(CONFIG_VIDEO_AMLTVOUT)
+#define CONFIG_CVBS_PERFORMANCE_COMPATIBILITY_SUPPORT	1
+
+#define CONFIG_CVBS_CHINASARFT		0x0
+#define CONFIG_CVBS_CHINATELECOM	0x1
+#define CONFIG_CVBS_CHINAMOBILE		0x2
+#define CONFIG_CVBS_PERFORMANCE_ACTIVED	CONFIG_CVBS_CHINASARFT
+
+#endif
 
 //Enable storage devices
 #define CONFIG_CMD_SF    1
@@ -140,7 +155,6 @@
 	"console=ttyS0,115200n8\0" \
 	"bootm_low=0x00000000\0" \
 	"bootm_size=0x80000000\0" \
-	"mmcargs=setenv bootargs console=${console} " \
 	"boardname=m8_board\0" \
 	"chipname=8726m8\0" \
 	"initrd_high=60000000\0" \
@@ -148,7 +162,7 @@
 	"cvbsmode=576cvbs\0" \
 	"outputmode=1080p\0" \
 	"vdac_config=0x10\0" \
-	"initargs=init=/init console=ttyS0,115200n8 no_console_suspend \0" \
+	"initargs=init=/init console=ttyS0,115200n8 no_console_suspend  ramoops.mem_address=0x04e00000 ramoops.mem_size=0x100000 ramoops.record_size=0x8000 ramoops.console_size=0x4000\0" \
 	"video_dev=tvout\0" \
 	"display_width=1920\0" \
 	"display_height=1080\0" \
@@ -177,10 +191,11 @@
 	"firstboot=1\0" \
 	"store=0\0"\
 	"preloaddtb=imgread dtb boot ${loadaddr}\0" \
+	"cvbs_drv=0\0"\
 	"preboot="\
         "if itest ${upgrade_step} == 3; then run prepare; run storeargs; run update; fi; "\
         "if itest ${upgrade_step} == 1; then  "\
-            "defenv; setenv upgrade_step 2; saveenv;"\
+            "defenv_reserve_env; setenv upgrade_step 2; saveenv;"\
         "fi; "\
         "run prepare;"\
         "run storeargs;"\
@@ -206,7 +221,7 @@
         "fi;\0"\
     \
    	"storeargs="\
-        "setenv bootargs ${initargs} vdaccfg=${vdac_config} logo=osd1,loaded,${fb_addr},${outputmode},full hdmimode=${hdmimode} cvbsmode=${cvbsmode} androidboot.firstboot=${firstboot} hdmitx=${cecconfig}\0"\
+        "setenv bootargs ${initargs} cvbsdrv=${cvbs_drv} vdaccfg=${vdac_config} logo=osd1,loaded,${fb_addr},${outputmode},full hdmimode=${hdmimode} cvbsmode=${cvbsmode} androidboot.firstboot=${firstboot} hdmitx=${cecconfig}\0"\
     \
 	"switch_bootmode="\
         "if test ${reboot_mode} = factory_reset; then "\
@@ -453,6 +468,7 @@
 /* secure storage support both spi and emmc */
 #define CONFIG_SECURE_MMC
 #define CONFIG_SPI_NOR_SECURE_STORAGE
+#define CONFIG_SECURE_NAND 1
 #endif // CONFIG_SECURE_STORAGE_BURNED
 
 #endif //CONFIG_MESON_TRUSTZONE

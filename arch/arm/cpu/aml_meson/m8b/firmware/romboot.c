@@ -112,7 +112,9 @@ SPL_STATIC_FUNC void fw_print_info(unsigned por_cfg,unsigned stage)
 STATIC_PREFIX int fw_load_intl(unsigned por_cfg,unsigned target,unsigned size)
 {
     int rc=0;
-	unsigned len;
+#if defined(CONFIG_UCL) && !defined(CONFIG_IMPROVE_UCL_DEC) && !defined(CONFIG_VLSI_EMULATOR)
+    unsigned len;
+#endif
     unsigned temp_addr;
 #ifdef CONFIG_MESON_TRUSTZONE
 	unsigned secure_addr;
@@ -132,7 +134,7 @@ STATIC_PREFIX int fw_load_intl(unsigned por_cfg,unsigned target,unsigned size)
 
 	if((((unsigned int)fw_load_intl >> 24) & 0xFF) != ((AHB_SRAM_BASE>>24)&0xFF))
 	{	
-		memcpy(temp_addr,target,size); //here need fine tune!!
+		memcpy((void*)temp_addr,(void*)target,size); //here need fine tune!!
 #if defined(CONFIG_AML_SECU_BOOT_V2)
 		serial_puts("Aml log : M8-TPL-SEC-DEC-1\n");
 		goto m8_tpl_dec;	
@@ -240,8 +242,11 @@ STATIC_PREFIX int fw_init_extl(unsigned por_cfg)
 }
 STATIC_PREFIX int fw_load_extl(unsigned por_cfg,unsigned target,unsigned size)
 {
-    unsigned temp_addr;
-	unsigned len;
+	int rc = 0;
+	unsigned temp_addr;
+#if defined(CONFIG_UCL) && !defined(CONFIG_IMPROVE_UCL_DEC) && !defined(CONFIG_VLSI_EMULATOR)
+    unsigned len;
+#endif
 #ifdef CONFIG_MESON_TRUSTZONE
 	unsigned secure_addr;
 	unsigned secure_size;
@@ -256,7 +261,7 @@ STATIC_PREFIX int fw_load_extl(unsigned por_cfg,unsigned target,unsigned size)
 
 	if((((unsigned int)fw_load_extl >> 24) & 0xFF) != ((AHB_SRAM_BASE>>24)&0xFF))
 	{	
-		memcpy(temp_addr,target,size); //here need fine tune!!
+		memcpy((void*)temp_addr,(void*)target,size); //here need fine tune!!
 #if defined(CONFIG_AML_SECU_BOOT_V2)
 		serial_puts("Aml log : M8-TPL-SEC-DEC-2\n");
 		goto m8_tpl_dec;	
@@ -265,7 +270,9 @@ STATIC_PREFIX int fw_load_extl(unsigned por_cfg,unsigned target,unsigned size)
 		goto m8_tpl_ucl_dec;
 	}
 
-    int rc=sdio_read(temp_addr,size,por_cfg);   
+	rc=sdio_read(temp_addr,size,por_cfg);
+	if(rc)
+		return rc;
 
 #if defined(CONFIG_AML_SECU_BOOT_V2)
 m8_tpl_dec:

@@ -38,7 +38,7 @@
 #ifdef AML_NAND_UBOOT
 
 #ifdef CONFIG_NAND_AML_M8
-#define P_HHI_NAND_CLK_CNTL 0xc110425c
+//#define P_HHI_NAND_CLK_CNTL 0xc110425c
 #define P_NAND_BASE 0xd0048600
 #else
 #define P_NAND_BASE 0xc1108600

@@ -54,6 +54,65 @@ struct battery_curve config_battery_curve[] = {
 };
 #endif
 
+const char * env_args_reserve[]=
+{
+"480poutputx",
+"480poutputx",
+"480poutputy",
+"480poutputwidth",
+"480poutputheight",
+"480ioutputx",
+"480ioutputy",
+"480ioutputwidth",
+"480ioutputheight",
+"576poutputx",
+"576poutputy",
+"576poutputwidth",
+"576poutputheight",
+"576ioutputx",
+"576ioutputy",
+"576ioutputwidth",
+"576ioutputheight",
+"720poutputx",
+"720poutputy",
+"720poutputwidth",
+"720poutputheight",
+"1080poutputx",
+"1080poutputy",
+"1080poutputwidth",
+"1080poutputheight",
+"1080ioutputx",
+"1080ioutputy",
+"1080ioutputwidth",
+"1080ioutputheight",
+"4k2k24hz_x",
+"4k2k24hz_y",
+"4k2k24hz_width",
+"4k2k24hz_height",
+"4k2k25hz_x",
+"4k2k25hz_y",
+"4k2k25hz_width",
+"4k2k25hz_height",
+"4k2k30hz_x",
+"4k2k30hz_y",
+"4k2k30hz_width",
+"4k2k30hz_height",
+"4k2ksmpte_x",
+"4k2ksmpte_y",
+"4k2ksmpte_width",
+"4k2ksmpte_height",
+"digitaudiooutput",
+"defaulttvfrequency",
+"has.accelerometer",
+"cecconfig",
+"cvbsmode",
+"hdmimode",
+"outputmode",
+"auto_update_enable",
+"disp.fromleft",
+NULL
+};
+
 #if defined(CONFIG_CMD_NET)
 /*************************************************
   * Amlogic Ethernet controller operation
@@ -552,7 +611,7 @@ static void board_i2c_init(void)
 }
 
 #ifdef CONFIG_NET_WIFI
-void wifi_power_init()
+void wifi_power_init(void)
 {
 	printf("mcli -- wifi_power_init in uboot --\n");
 	clrbits_le32(P_AO_GPIO_O_EN_N,1<<22);
@@ -684,7 +743,7 @@ static int do_msr(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 
 	//printf("\n");
 	for(;((nIndex < 64) && nCounter);nCounter--,nIndex++)
-		printf("MSR clock[%d] = %dMHz\n",nIndex,clk_util_clk_msr(nIndex));
+		printf("MSR clock[%d] = %dMHz\n",nIndex,(int)clk_util_clk_msr(nIndex));
 
 	return 0;
 
@@ -701,26 +760,65 @@ U_BOOT_CMD(
 
 static int select_m8_dtd(unsigned int pID1)
 {
-  switch(pID1)
-	{
-		case 0x25e2:   //chip version A
-			printf("chip version A, emmc use sdio controller\n");
-			setenv("aml_dt", "m8_k200_sdio");
-			break;
-		case 0x27ed:   //chip version B
-			printf("chip version B, emmc use sdhc controller\n");
-			setenv("aml_dt", "m8_k200_sdhc");
-			break;
-		default:
-			printf("bad chip version!!!");
-			return 1;
+	unsigned int ddr_size;
+	int i;
+	for(i=0; i<CONFIG_NR_DRAM_BANKS; i++) {
+		ddr_size += gd->bd->bi_dram[i].size;
 	}
-  return 0;
+	if(0x80000000==ddr_size){/*2G ddr*/
+		switch(pID1){
+			case 0x25e2:   //chip version A
+				//printf("chip version A, emmc use sdio controller\n");
+				setenv("aml_dt", "m8_k200_2gsdio");
+				break;
+			case 0x27ed:   //chip version B
+				//printf("chip version B, emmc use sdhc controller\n");
+				setenv("aml_dt", "m8_k200_2gsdhc");
+				break;
+			default:
+				printf("bad chip version!!!");
+				return 1;
+		}
+	}
+	else if(0x40000000==ddr_size){/*1G ddr*/
+		switch(pID1){
+			case 0x25e2:   //chip version A
+				//printf("chip version A, emmc use sdio controller\n");
+				setenv("aml_dt", "m8_k200_sdio");
+				break;
+			case 0x27ed:   //chip version B
+				//printf("chip version B, emmc use sdhc controller\n");
+				setenv("aml_dt", "m8_k200_sdhc");
+				break;
+			default:
+				printf("bad chip version!!!");
+				return 1;
+		}
+	}
+	else{/*others doesn't support fo now*/
+		printf("DDR size: 0x%x, multi-dt doesn't support\n", ddr_size);
+		return -1;
+	}
+	return 0;
 }
 
 static int select_m8m2_dtd(unsigned int pID1)
 {
-	setenv("aml_dt", "m8m2_n200_2G");
+	unsigned int ddr_size;
+	int i;
+	for(i=0; i<CONFIG_NR_DRAM_BANKS; i++) {
+		ddr_size += gd->bd->bi_dram[i].size;
+	}
+	if(0x80000000==ddr_size){/*2G ddr*/
+		setenv("aml_dt", "m8m2_n200_2G");
+	}
+	else if(0x40000000==ddr_size){/*1G ddr*/
+		setenv("aml_dt", "m8m2_n200_1G");
+	}
+	else{/*others doesn't support fo now*/
+		printf("DDR size: 0x%x, multi-dt doesn't support\n", ddr_size);
+		return -1;
+	}
 	return 0;
 }
 static int do_checkhw(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
@@ -729,6 +827,7 @@ static int do_checkhw(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
        unsigned int *pID1 =(unsigned int *)0xd9040004;
        //unsigned int *pID2 =(unsigned int *)0xd904002c;
 #else
+       extern uint32_t meson_trustzone_read_socrev1(void);
        unsigned int ID1 = meson_trustzone_read_socrev1();
        //unsigned int ID2 = meson_trustzone_read_socrev2();
        unsigned int *pID1 = &ID1;

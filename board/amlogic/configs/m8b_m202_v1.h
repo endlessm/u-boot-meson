@@ -47,6 +47,7 @@
 #define CONFIG_CMD_PWM  1
 
 //Enable storage devices
+#define CONFIG_CMD_CPU_TEMP
 #define CONFIG_CMD_NAND  1
 #define CONFIG_VIDEO_AML 1
 #define CONFIG_CMD_BMP 1
@@ -138,7 +139,6 @@
 	"console=ttyS0,115200n8\0" \
 	"bootm_low=0x00000000\0" \
 	"bootm_size=0x80000000\0" \
-	"mmcargs=setenv bootargs console=${console} " \
 	"boardname=m8_board\0" \
 	"chipname=8726m8\0" \
 	"initrd_high=60000000\0" \
@@ -146,7 +146,7 @@
 	"cvbsmode=576cvbs\0" \
 	"outputmode=1080p\0" \
 	"vdac_config=0x10\0" \
-	"initargs=init=/init console=ttyS0,115200n8 no_console_suspend \0" \
+	"initargs=init=/init console=ttyS0,115200n8 no_console_suspend  ramoops.mem_address=0x04e00000 ramoops.mem_size=0x100000 ramoops.record_size=0x8000 ramoops.console_size=0x4000\0" \
 	"video_dev=tvout\0" \
 	"display_width=1920\0" \
 	"display_height=1080\0" \
@@ -178,7 +178,7 @@
 	"preboot="\
         "if itest ${upgrade_step} == 3; then run prepare; run storeargs; run update; fi; "\
         "if itest ${upgrade_step} == 1; then  "\
-            "defenv; setenv upgrade_step 2; saveenv;"\
+            "defenv_reserve_env; setenv upgrade_step 2; saveenv;"\
         "fi; "\
         "run prepare;"\
         "run storeargs;"\

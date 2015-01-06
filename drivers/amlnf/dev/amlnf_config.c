@@ -10,7 +10,7 @@
 extern struct partitions *part_table;
 struct amlnf_partition * amlnand_config=NULL;
 
-int amlnand_get_partition_table()
+int amlnand_get_partition_table(void)
 {	
 	int ret=0;
 

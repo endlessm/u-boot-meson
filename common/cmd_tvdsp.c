@@ -4,8 +4,10 @@
 
 #include <config.h>
 
-
 #include <asm/arch/dsp_state.h>
+
+extern int stop_dsp(void);
+extern int start_dsp(void);
 
 static int dsp_machine=0;
 
@@ -81,7 +83,7 @@ static int tv_request_start_dsp(int argc, char *argv[])
 	printf("start dsp fail dsp_machine:%d\n",dsp_machine);
 	return 1;
 }
-static int do_tvdsp(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
+static int do_tvdsp(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 	const char *cmd;
 	cmd = argv[1];
@@ -89,11 +91,11 @@ static int do_tvdsp(cmd_tbl_t *cmdtp, int flag, int argc, char *argv[])
 	printf("test tvdsp\n");
 	printf("%s\n",cmd);
 	if (strcmp(cmd, "start") == 0)
-		return tv_request_start_dsp(argc,argv);
+		return tv_request_start_dsp(argc,(char **)argv);
 	if (strcmp(cmd, "check") == 0)
-		return tv_check_dsp_status(argc,argv);
+		return tv_check_dsp_status(argc,(char **)argv);
 	if (strcmp(cmd, "stop") == 0)
-		return tv_request_stop_dsp(argc,argv);
+		return tv_request_stop_dsp(argc,(char **)argv);
 
 	cmd_usage(cmdtp);
 	return 1;

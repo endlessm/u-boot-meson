@@ -2,8 +2,9 @@
 #include <io.h>
 #include <uart.h>
 #include <reg_addr.h>
+#ifndef CONFIG_MESON_TRUSTZONE
 #include "boot_code.dat"
-
+#endif
 #include <arc_pwr.h>
 
 #include <pwr_op.c>
@@ -38,17 +39,18 @@ void store_restore_plls(int flag);
 #define dbg_out(s,v) f_serial_puts(s);serial_put_hex(v,32);f_serial_puts("\n");wait_uart_empty();
 
 extern void udelay(int i);
-extern void wait_uart_empty();
+extern void wait_uart_empty(void);
 
-extern void uart_reset();
+extern void uart_reset(void);
 extern void init_ddr_pll(void);
 extern void __udelay(int n);
-
+/*
 static void timer_init()
 {
 	//100uS stick timer a mode : periodic, timer a enable, timer e enable
     setbits_le32(P_AO_TIMER_REG,0x1f);
 }
+*/
 
 unsigned  get_tick(unsigned base)
 {
@@ -111,10 +113,17 @@ void copy_reboot_code()
 {
 	int i;
 	int code_size;
+#ifdef CONFIG_MESON_TRUSTZONE
+	volatile unsigned char* pcode = *(int *)(0x0004);//appf_arc_code_memory[1]
+	volatile unsigned char * arm_base = (volatile unsigned char *)0x0000;
+
+	code_size = *(int *)(0x0008);//appf_arc_code_memory[2]
+#else
 	volatile unsigned char* pcode = (volatile unsigned char*)arm_reboot;
 	volatile unsigned char * arm_base = (volatile unsigned char *)0x0000;
 
 	code_size = sizeof(arm_reboot);
+#endif
 	//copy new code for ARM restart
 	for(i = 0; i < code_size; i++)
 	{
@@ -215,12 +224,11 @@ inline void switch_32K_to_24M(void)
 #define pwr_ddr_off 
 void enter_power_down()
 {
-	int i;
 	unsigned int uboot_cmd_flag=readl(P_AO_RTI_STATUS_REG2);//u-boot suspend cmd flag
 	unsigned int vcin_state = 0;
 	int wdt_flag;
-    int voltage   = 0;
-    int axp_ocv = 0;
+    //int voltage   = 0;
+    //int axp_ocv = 0;
 
 	// First, we disable all memory accesses.
 
@@ -273,6 +281,7 @@ void enter_power_down()
 #if 1
 	vcin_state = p_arc_pwr_op->detect_key(uboot_cmd_flag);
 #else
+	int i;
 	for(i=0;i<10;i++)
 	{
 		udelay__(1000);
@@ -354,7 +363,7 @@ void enter_power_down()
 
 //#define ART_CORE_TEST
 
-struct ARC_PARAM *arc_param=ARC_PARAM_ADDR;//
+struct ARC_PARAM *arc_param=(struct ARC_PARAM *)(ARC_PARAM_ADDR);//
 
 #define _UART_DEBUG_COMMUNICATION_
 

@@ -130,7 +130,7 @@ static int amlnand_chip_scan(struct amlnand_chip *aml_chip)
 	struct chip_operation *operation = &(aml_chip->operation);
 	unsigned char dev_id[MAX_ID_LEN] = {0};
 	unsigned char onfi_features[4] = {0};
- 	int i, t, chip_num, ret = 0;
+ 	int i, chip_num, ret = 0;
 
 	//should setting nand pinmux first
 #ifdef AML_NAND_UBOOT
@@ -148,6 +148,8 @@ static int amlnand_chip_scan(struct amlnand_chip *aml_chip)
 	controller->option |= NAND_CTRL_NONE_RB;
 	chip_num = 1;
 
+	/*ce0 is always valid.*/
+	aml_chip->ce_bit_mask |= 0x01;
 		/* Check for a chip array */
 	for (i = 1; i < MAX_CHIP_NUM; i++) {
 		memset(&dev_id[0], 0, MAX_ID_LEN);
@@ -164,9 +166,10 @@ static int amlnand_chip_scan(struct amlnand_chip *aml_chip)
 			controller->ce_enable[chip_num] = (((CE_PAD_DEFAULT >> i*4) & 0xf) << 10);
 			controller->rb_enable[chip_num] = (((RB_PAD_DEFAULT>> i*4) & 0xf) << 10);
 			chip_num++;
-			
+			aml_chip->ce_bit_mask |= (1 << i);
 		}
 	}
+	aml_nand_msg("nand chip ce mask %0x", aml_chip->ce_bit_mask);
 
 	controller->chip_num = chip_num;
 	
@@ -312,7 +315,7 @@ static void nand_buf_free(struct amlnand_chip *aml_chip)
 	  aml_nand_free(controller->oob_buf);
 }
 
-
+#ifndef CONFIG_NAND_AML_M8
 /*
   * check rb pin here.
   * if without rb pin, then setting NAND_CTRL_NONE_RB mode
@@ -347,6 +350,7 @@ static void aml_chip_rb_mode_confirm(struct amlnand_chip *aml_chip)
 	}
 
 }
+#endif
 
 void amlchip_dumpinfo(struct amlnand_chip *aml_chip)
 {
@@ -546,7 +550,7 @@ int amlchip_opstest(struct amlnand_chip *aml_chip)
 #else
 	nand_release_chip(aml_chip);
 #endif
-
+	return 0;
 }
 
 /*
