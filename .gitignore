@@ -13,6 +13,8 @@
 *~
 *.swp
 *.patch
+*.dat
+/build
 
 #
 # Top-level generic files
