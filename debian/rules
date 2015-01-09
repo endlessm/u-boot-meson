@@ -45,8 +45,8 @@ override_dh_auto_build:
 		mkdir -p debian/build/$$plat; \
 		cp debian/bin/mkbl2 $$PWD/debian/build/$$plat; \
 		$(MAKE) O=$$PWD/debian/build/$$plat $${plat}_config; \
-		test "$$buildtarget" = "-" && $(MAKE) CROSS_COMPILE=arm-none-eabi- O=$$PWD/debian/build/$$plat; \
-		test "$$buildtarget" != "-" && $(MAKE) CROSS_COMPILE=arm-none-eabi- O=$$PWD/debian/build/$$plat \
+		test "$$buildtarget" = "-" && $(MAKE) O=$$PWD/debian/build/$$plat; \
+		test "$$buildtarget" != "-" && $(MAKE) O=$$PWD/debian/build/$$plat \
 			$$PWD/debian/build/$$plat/$$buildtarget; \
 		true; \
 	done <debian/platforms-debs-targets
