@@ -65,7 +65,7 @@ BIN_FILES-$(CONFIG_INCA_IP) += inca-swap-bytes$(SFX)
 BIN_FILES-y += mkimage$(SFX)
 BIN_FILES-$(CONFIG_NETCONSOLE) += ncb$(SFX)
 BIN_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1$(SFX)
-BIN_FILES-$(CONFIG_AML_MESON)	+=convert$(SFX)
+BIN_FILES-$(CONFIG_AML_MESON)	+=convert$(SFX) amlogic-fix-spl-checksum$(SFX)
 BIN_FILES-$(CONFIG_UCL) +=uclpack$(SFX)
 BIN_FILES-y +=bin2code$(SFX)
 BIN_FILES-$(CONFIG_JOIN_UBOOT_SECUREOS) += join_uboot_secureos$(SFX)
@@ -91,7 +91,7 @@ NOPED_OBJ_FILES-y += mkimage.o
 OBJ_FILES-$(CONFIG_NETCONSOLE) += ncb.o
 NOPED_OBJ_FILES-y += os_support.o
 OBJ_FILES-$(CONFIG_SHA1_CHECK_UB_IMG) += ubsha1.o
-OBJ_FILES-$(CONFIG_AML_MESON)	+=convert.o m1_romboot.o a3_romboot.o m3_romboot.o m6_romboot.o m8_romboot.o m6tvd_romboot.o
+OBJ_FILES-$(CONFIG_AML_MESON)	+=convert.o m1_romboot.o a3_romboot.o m3_romboot.o m6_romboot.o m8_romboot.o m6tvd_romboot.o amlogic-fix-spl-checksum.o
 OBJ_FILES-$(CONFIG_UCL) += uclpack.o
 OBJ_FILES-y += bin2code.o
 OBJ_FILES-$(CONFIG_JOIN_UBOOT_SECUREOS) += join_uboot_secureos.o
@@ -219,7 +219,10 @@ $(LIBUCL_FILE):
 
 $(obj)bin2code$(SFX): $(obj)bin2code.o
 	$(HOSTCC) -g $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
-		
+
+$(obj)amlogic-fix-spl-checksum$(SFX): $(obj)amlogic-fix-spl-checksum.o
+	$(HOSTCC) -g $(HOSTCFLAGS) $(HOSTLDFLAGS) -o $@ $^
+
 # Some of the tool objects need to be accessed from outside the tools directory
 $(obj)%.o: $(SRCTREE)/common/%.c
 	$(HOSTCC) -g $(HOSTCFLAGS_NOPED) -c -o $@ $<

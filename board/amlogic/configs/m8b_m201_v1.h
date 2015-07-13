@@ -122,8 +122,8 @@
 
 #define CONFIG_ENABLE_CVBS 1
 
-#define CONFIG_UCL 1
-#define CONFIG_SELF_COMPRESS 
+#define CONFIG_UCL 0
+//#define CONFIG_SELF_COMPRESS 
 //#define CONFIG_PREBOOT "mw da004004 80000510;mw c81000014 4000;mw c1109900 0"
 
 #define CONFIG_CMD_AUTOSCRIPT
@@ -403,7 +403,7 @@
 
 #define CONFIG_SYS_MEMTEST_START      0x10000000  /* memtest works on */      
 #define CONFIG_SYS_MEMTEST_END        0x18000000  /* 0 ... 128 MB in DRAM */  
-#define CONFIG_ENABLE_MEM_DEVICE_TEST 1
+//#define CONFIG_ENABLE_MEM_DEVICE_TEST 1
 #define CONFIG_NR_DRAM_BANKS	      1	          /* CS1 may or may not be populated */
 
 #ifdef CONFIG_DDR_SIZE_AUTO_DETECT
@@ -422,7 +422,7 @@
 #define CONFIG_CMD_IMGPACK 1
 
 //M8 secure boot disable
-//#define CONFIG_AML_DISABLE_CRYPTO_UBOOT 1
+#define CONFIG_AML_DISABLE_CRYPTO_UBOOT 1
 
 //M8 L1 cache enable for uboot decompress speed up
 #define CONFIG_AML_SPL_L1_CACHE_ON	1
