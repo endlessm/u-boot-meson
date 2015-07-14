@@ -1,1 +1,2 @@
 debian/build/m8b_m201_1G/u-boot.bin /usr/lib/u-boot/meson8b_m201
+debian/build/m8b_m201_1G/tools/amlogic-fix-spl-checksum /usr/sbin/
