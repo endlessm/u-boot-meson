@@ -19,6 +19,7 @@
 #define PORT_B_CARD_TYPE            CARD_TYPE_UNKNOWN
 #define PORT_C_CARD_TYPE            CARD_TYPE_MMC // CARD_TYPE_MMC/CARD_TYPE_SD
 
+#define CONFIG_EFI_PARTITION
 //UART Sectoion
 #define CONFIG_CONS_INDEX   2
 
