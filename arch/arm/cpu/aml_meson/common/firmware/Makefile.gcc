@@ -11,7 +11,7 @@ T=$(TOPDIR)/firmware/$(ARCH)/$(CPU)/Makefile
 endif
 PLATFORM_CPPFLAGS+=-DCONFIG_AMLROM_SPL
 
-LDFLAGS	= -Bstatic -T $(obj)firmware.lds  $(PLATFORM_LDFLAGS)
+LDFLAGS	= -Bstatic -T $(obj)firmware.lds  $(PLATFORM_LDFLAGS) --gc-sections
 BURNLDFLAGS	= -Bstatic -T $(obj)burner.lds  $(PLATFORM_LDFLAGS)
 #AFLAGS	+= -DAML_DEBUG_ROM -DTEXT_BASE=$(TEXT_BASE)  -I$(OBJTREE)
 #CFLAGS	+= -DAML_DEBUG_ROM -DTEXT_BASE=$(TEXT_BASE)  -I$(OBJTREE)
@@ -26,7 +26,7 @@ CFLAGS	:=$(CFLAGS:-marm=-mthumb)
 #CFLAGS	:=$(CFLAGS:-mno-thumb-interwork=)
 CFLAGS	:=$(CFLAGS:-fPIC=)
 CFLAGS	:=$(CFLAGS:-ffixed-r8=)
-CFLAGS	+=  -DCONFIG_AML_ROMBOOT_SPL  -MD -Wno-unused-function -mno-long-calls
+CFLAGS	+= -Os -DCONFIG_AML_ROMBOOT_SPL  -MD -Wno-unused-function -mno-long-calls -fdata-sections -ffunction-sections
 AFLAGS	+= -DCONFIG_AMLROM_SPL -DTEXT_BASE=$(TEXT_BASE) -DUCL_TEXT_BASE=$(UCL_TEXT_BASE) -MD
 #CONFIG_AML_ROMBOOT_SPL
 #CC=armcc --translate_gcc --gnu --c99

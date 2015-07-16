@@ -136,9 +136,10 @@ STATIC_PREFIX int fw_load_intl(unsigned por_cfg,unsigned target,unsigned size)
 #if defined(CONFIG_AML_SECU_BOOT_V2)
 		serial_puts("Aml log : M8-TPL-SEC-DEC-1\n");
 		goto m8_tpl_dec;	
-#endif //CONFIG_AML_SECU_BOOT_V2
+#else
 		serial_puts("Aml log : M8-TPL-UCL-DEC-1\n");		
 		goto m8_tpl_ucl_dec;
+#endif //CONFIG_AML_SECU_BOOT_V2
 	}
 
     unsigned * mem;    
@@ -260,9 +261,10 @@ STATIC_PREFIX int fw_load_extl(unsigned por_cfg,unsigned target,unsigned size)
 #if defined(CONFIG_AML_SECU_BOOT_V2)
 		serial_puts("Aml log : M8-TPL-SEC-DEC-2\n");
 		goto m8_tpl_dec;	
-#endif //CONFIG_AML_SECU_BOOT_V2
+#else
 		serial_puts("Aml log : M8-TPL-UCL-DEC-2\n");		
 		goto m8_tpl_ucl_dec;
+#endif //CONFIG_AML_SECU_BOOT_V2
 	}
 
     int rc=sdio_read(temp_addr,size,por_cfg);   
@@ -280,6 +282,7 @@ m8_tpl_ucl_dec:
     serial_puts("Load uncompressed image from SD 1 for PxP!\n");
 #else
 
+m8_tpl_ucl_dec:
 #ifdef CONFIG_MESON_TRUSTZONE
 	sram = (unsigned*)(AHB_SRAM_BASE + READ_SIZE-SECURE_OS_OFFSET_POSITION_IN_SRAM);
 	secure_addr = (*sram) + temp_addr - READ_SIZE;

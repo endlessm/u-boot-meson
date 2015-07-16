@@ -19,7 +19,7 @@ SECTIONS
 	  *magic.o(.text)
 	}
 	
-	. = AHB_SRAM_BASE+0x200;
+	. = AHB_SRAM_BASE+0x4400;
 	.acs_entry :{
 	  *acs_entry.o(.text)
 	}
@@ -27,7 +27,7 @@ SECTIONS
 	. = ALIGN(4);
 	.setting		:
 	{
-		* (.setting)
+		KEEP(*(.setting))
 	}
 		
 	
