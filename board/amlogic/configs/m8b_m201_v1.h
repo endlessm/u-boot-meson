@@ -275,9 +275,9 @@
     \
 	"usb_burning=update 1000\0" \
     "sdc_burning=sdc_burn ${sdcburncfg}\0" \
-    "loadbootenv=echo >>> Load Boot Script from mmc 0:1 <<<;ext4load mmc 0:1 0x11000000 uEnv.txt\0" \
+    "loadbootenv=echo >>> Load Boot Script from mmc 0:1 <<<;ext4load mmc 0:1 0x11000000 /boot/uEnv.txt\0" \
     "importbootenv=echo >>> Importing environment from mmc 0:1 <<<;env import -t 0x11000000 ${filesize}\0" \
-    "uenvbootcmd=ext4load mmc 0:1 ${loadaddr} ${kernel_image};ext4load mmc 0:1 0x13000000 ${ramdisk_image};bootm ${loadaddr} 0x13000000\0" \
+    "uenvbootcmd=ext4load mmc 0:1 ${loadaddr} /boot/${kernel_image};ext4load mmc 0:1 0x13000000 /boot/${ramdisk_image};bootm ${loadaddr} 0x13000000\0" \
 	"endlessboot=mmcinfo; run loadbootenv; run importbootenv; run uenvbootcmd\0"
 
 
