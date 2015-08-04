@@ -63,23 +63,29 @@ int ddr_mode_auto_detect(struct ddr_set * timing_reg){
 }
 #endif
 
+#if defined(CONFIG_DDR_MODE_AUTO_DETECT) || defined(CONFIG_DDR_SIZE_AUTO_DETECT)
+unsigned int set_dmc_row(unsigned int dmc, unsigned int channel0, unsigned int channel1){
+	dmc = dmc & ( 0xfffff3f3 ); /*clear row size bit*/
+	dmc = dmc | ((channel0 & 0x3) << 2) | ((channel1 & 0x3) << 10);
+	return dmc;
+}
+#endif
+
 /*Following code is for DDR SIZE AUTO DETECT*/
 #define DDR_SIZE_AUTO_DETECT_DEBUG 0
 #ifdef CONFIG_DDR_SIZE_AUTO_DETECT
-#define DDR_SIZE_AUTO_DETECT_PATTERN	0xAABBBBAA
-#define MEMORY_ROW_MASK_BIT_OFFSET_32BIT_MAX 28	//1<<28, mask 1GB
-#define MEMORY_ROW_MASK_BIT_OFFSET_32BIT_MIN 26	//1<<26, mask 256MB
-#define MEMORY_ROW_MASK_BIT_OFFSET_16BIT_MAX 27	//1<<27, mask 512MB
-#define MEMORY_ROW_MASK_BIT_OFFSET_16BIT_MIN 25	//1<<25, mask 128MB
+#define DDR_SIZE_AUTO_DETECT_PATTERN	0xABCDEF00
 #define MEMORY_ROW_BITS(mem_size, mode_16bit) ((mem_size >> 29) + (mode_16bit ? 14:13))
 #define MEMORY_ROW_BITS_DMC_REG(mem_size, mode_16bit) \
 	(MEMORY_ROW_BITS(mem_size, mode_16bit) > 15)?(0):(MEMORY_ROW_BITS(mem_size, mode_16bit) - 12)
 #define MEMORY_ROW_BITS_DMC_REG_SIMP(row_bits) ((row_bits > 15)?(0):(row_bits- 12))
 void ddr_size_auto_detect(struct ddr_set * timing_reg){
-/*memory size auto detect function only support:
-32bit mode: 1GB, 512MB, 256MB
-16bit mode: 512MB, 256MB, 128MB*/
-	//enable pctl clk
+/*
+memory size auto detect function support:
+32bit max 2GB
+16bit max 1GB
+*/
+	/*enable pctl clk*/
 	writel(readl(P_DDR0_CLK_CTRL) | 0x1, P_DDR0_CLK_CTRL);
 	__udelay(1000);
 #if DDR_SIZE_AUTO_DETECT_DEBUG //debug info
@@ -102,52 +108,59 @@ void ddr_size_auto_detect(struct ddr_set * timing_reg){
 	serial_put_hex(M8BABY_GET_DT_ADDR(readl(P_DDR0_PUB_DTAR0), readl(P_DMC_DDR_CTRL)), 32);
 	serial_puts("\n");
 #endif
-	unsigned int mem_sizes[] = {
-		0x10000000,	//256MB
-		0x20000000,	//512MB
-		0x40000000,	//1GB
-		//0x80000000	//2GB
-	};
-
-	//set max row_size, then use "ROW ADDRESS MASK" to detect memory size
-	unsigned int dmc_reg_max_row = ((timing_reg->t_mmc_ddr_ctrl & (~(3<<2))) | (0<<2) | (0<<10));
-	writel(dmc_reg_max_row, P_DMC_DDR_CTRL);
 
 	//row_size of 16bit and 32bit mode are different
 	unsigned int mem_mode = 0;
-	unsigned int row_mask_bit_offset = MEMORY_ROW_MASK_BIT_OFFSET_32BIT_MIN;
-	if(cfg_ddr_mode > CFG_DDR_32BIT){
+	if (cfg_ddr_mode > CFG_DDR_32BIT)
 		mem_mode = 1;
-		row_mask_bit_offset = MEMORY_ROW_MASK_BIT_OFFSET_16BIT_MIN;
-	}
+
+	/*set max row size, then use "ROW ADDRESS MASK" to detect memory size*/
+	timing_reg->t_mmc_ddr_ctrl = set_dmc_row(timing_reg->t_mmc_ddr_ctrl, 0x0, 0x0);
+	unsigned int dmc_reg_setting = timing_reg->t_mmc_ddr_ctrl;//readl(P_MMC_DDR_CTRL);
+	writel(dmc_reg_setting, P_DMC_DDR_CTRL);
+
+#if DDR_SIZE_AUTO_DETECT_DEBUG //debug info
+	serial_puts("new P_DMC_DDR_CTRL: ");
+	serial_put_hex(readl(P_DMC_DDR_CTRL), 32);
+	serial_puts("\n");
+#endif
+
+	/*start detection*/
+	unsigned int row_mask_bit_offset = 25; /*just start from a little row size*/
 	unsigned int cur_mask_addr = 0;
-	unsigned int cur_mem_size = 0;
 	int loop = 0;
-	for(loop = 0; loop < (sizeof(mem_sizes) / sizeof(unsigned int)); loop++){
-		cur_mem_size = (mem_sizes[loop] >> 20) >> (mem_mode);	//Byte->MByte
+	for(loop = 0; ; loop++){
 		cur_mask_addr = (1 << (row_mask_bit_offset + loop));
-		__udelay(1);
-		writel(0x12345678, 0);
-		writel(0x87654321, cur_mask_addr);
-#if DDR_SIZE_AUTO_DETECT_DEBUG	//debug info
-		serial_puts("write address: ");
+		writel(0, PHYS_MEMORY_START);
+		writel(DDR_SIZE_AUTO_DETECT_PATTERN, cur_mask_addr);
+#if (DDR_SIZE_AUTO_DETECT_DEBUG)
+		serial_puts("	write address: ");
 		serial_put_hex(cur_mask_addr, 32);
-		serial_puts(" with 0x87654321\nread back: ");
-		serial_put_hex(readl(cur_mask_addr), 32);
-		serial_puts("\n");
-		serial_puts("readl 0: ");
+		serial_puts("	with 0xABCDEF00\n	read(0): ");
 		serial_put_hex(readl(0), 32);
 		serial_puts("\n");
 #endif
 		asm volatile("DSB"); /*sync ddr data*/
-		if(readl(0) == 0x87654321){
+		__udelay(1);
+		if (readl(PHYS_MEMORY_START) == DDR_SIZE_AUTO_DETECT_PATTERN) {
+#if (DDR_SIZE_AUTO_DETECT_DEBUG)
+			serial_puts("	find match address(not ddr size): ");
+			serial_put_hex(cur_mask_addr, 32);
+			serial_puts("\n");
+#endif
+			break;
+		}
+		if (cur_mask_addr >= (0x20000000 >> mem_mode)) {
+			/*32bit max 2GB, 16bit max 1GB*/
 			break;
 		}
 	}
-	print_ddr_size(cur_mem_size << 20);
+
+	cur_mask_addr = cur_mask_addr << 2; /*it's a fixed multiplier according to the phy*/
+	print_ddr_size(cur_mask_addr);
 
 	/*Get corresponding row_bits setting and write back to DMC reg*/
-	unsigned int cur_row_bits = MEMORY_ROW_BITS((cur_mem_size<<20), mem_mode);
+	unsigned int cur_row_bits = MEMORY_ROW_BITS((cur_mask_addr), mem_mode);
 	unsigned int cur_row_bit_dmc = MEMORY_ROW_BITS_DMC_REG_SIMP(cur_row_bits);
 	timing_reg->t_mmc_ddr_ctrl = ((timing_reg->t_mmc_ddr_ctrl & (~(3<<2))) | (cur_row_bit_dmc<<2) | ((cur_row_bit_dmc<<10)));
 	writel(timing_reg->t_mmc_ddr_ctrl, P_DMC_DDR_CTRL);
@@ -182,7 +195,7 @@ void ddr_size_auto_detect(struct ddr_set * timing_reg){
 	serial_puts("\n");
 #endif
 
-	timing_reg->phy_memory_size = (cur_mem_size << 20);
+	timing_reg->phy_memory_size = (cur_mask_addr);
 
 	//disable pctl clk
 	writel(readl(P_DDR0_CLK_CTRL) & (~1), P_DDR0_CLK_CTRL);
