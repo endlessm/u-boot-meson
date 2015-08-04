@@ -575,7 +575,7 @@ void board_init_r (gd_t *id, ulong dest_addr)
 	malloc_start = dest_addr - TOTAL_MALLOC_LEN;
 	mem_malloc_init (malloc_start, TOTAL_MALLOC_LEN);
 #ifdef CONFIG_ACS
-	get_partition_table();
+//	get_partition_table();
 #endif
 
 #ifdef CONFIG_GENERIC_MMC

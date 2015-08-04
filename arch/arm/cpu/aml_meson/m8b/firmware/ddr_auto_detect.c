@@ -106,7 +106,7 @@ void ddr_size_auto_detect(struct ddr_set * timing_reg){
 		0x10000000,	//256MB
 		0x20000000,	//512MB
 		0x40000000,	//1GB
-		//0x80000000	//2GB
+		0x80000000	//2GB
 	};
 
 	//set max row_size, then use "ROW ADDRESS MASK" to detect memory size
