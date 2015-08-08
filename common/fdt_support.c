@@ -437,6 +437,19 @@ int fdt_fixup_memory_banks(void *blob, u64 start[], u64 size[], int banks)
 				"reg", fdt_strerror(err));
 		return err;
 	}
+
+	if (banks == 1) {
+		u8 mem_cell[4];
+
+		write_cell(mem_cell, size[0] - 0x200000, sizeof(mem_cell));
+		err = fdt_setprop(blob, nodeoffset, "linux,total-memory", mem_cell, sizeof(mem_cell));
+		if (err < 0) {
+			printf("WARNING: could not set %s %s.\n",
+					"linux,total-memory", fdt_strerror(err));
+			return err;
+		}
+	}
+
 	return 0;
 }
 
