@@ -13,7 +13,7 @@ static void update_ddr_mmu_table(void)
 #ifdef CONFIG_MESON_TRUSTZONE
 	ddr_size_ind = meson_trustzone_sram_read_reg32(CONFIG_DDR_SIZE_IND_ADDR);
 #else
-	ddr_size_ind = readl(CONFIG_DDR_SIZE_IND_ADDR);
+	ddr_size_ind = readl(CONFIG_DDR_SIZE_IND_ADDR) & ~0x1;
 #endif
 
 	if(ddr_size_ind < 0x80 || ddr_size_ind > 0x800) //legal DDR size: 128MB - 2GB
