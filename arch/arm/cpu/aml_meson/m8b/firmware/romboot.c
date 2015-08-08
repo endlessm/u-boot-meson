@@ -55,6 +55,7 @@ SPL_STATIC_FUNC void fw_print_info(unsigned por_cfg,unsigned stage)
     serial_puts("Boot from");
     if(stage==0){
         serial_puts(" internal device ");
+        writel(readl(CONFIG_DDR_SIZE_IND_ADDR) | 0x1, CONFIG_DDR_SIZE_IND_ADDR);
         if(POR_GET_1ST_CFG(por_cfg) != 0)	{
 	    switch(POR_GET_1ST_CFG(por_cfg))
             //switch(POR_1ST_SPI)

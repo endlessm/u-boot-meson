@@ -16,6 +16,17 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+int misc_init_r(void)
+{
+	int boot_dev = readl(CONFIG_DDR_SIZE_IND_ADDR) & 0x1;
+	char boot_dev_str[2];
+
+	sprintf(boot_dev_str, "%d", boot_dev);
+	setenv("mmcbootdev", boot_dev_str);
+
+	printf("Variable 'mmcbootdev' set to '%s'\n", boot_dev_str);
+}
+
 #if defined(CONFIG_CMD_NET)
 /*************************************************
   * Amlogic Ethernet controller operation
