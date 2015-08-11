@@ -537,7 +537,12 @@ void borad_power_init(void)
 	//power on VCC5V
 	gpio_amlogic_requst(NULL, GPIODV_29);
 	gpio_amlogic_direction_output(NULL, GPIODV_29, 0);
-	
+
+	printf("powering EC\n");
+	gpio_amlogic_requst(NULL, GPIOAO_7);
+	gpio_amlogic_direction_output(NULL, GPIOAO_7, 1);
+	gpio_amlogic_requst(NULL, GPIOAO_2);
+	gpio_amlogic_direction_output(NULL, GPIOAO_2, 1);
 }
 int board_init(void)
 {
