@@ -20,11 +20,41 @@ int misc_init_r(void)
 {
 	int boot_dev = readl(CONFIG_DDR_SIZE_IND_ADDR) & 0x1;
 	char boot_dev_str[2];
+	char magic[2];
+	__le16 productid;
+	ssize_t count;
+	const char *boardname = "ec100";
+	loff_t off;
 
 	sprintf(boot_dev_str, "%d", boot_dev);
 	setenv("mmcbootdev", boot_dev_str);
 
 	printf("Variable 'mmcbootdev' set to '%s'\n", boot_dev_str);
+
+	off = 0x150;
+	count = efuse_read(magic, 2, &off);
+	if (count != 2 || magic[0] != 0xdd || magic[1] != 0xcc)
+		goto out;
+
+	off = 0x162;
+	count = efuse_read(&productid, 2, &off);
+	if (count != 2)
+		goto out;
+
+	switch (le16_to_cpu(productid)) {
+	case 1:
+		boardname = "m201";
+		break;
+	case 2:
+		boardname = "ec100";
+		break;
+	}
+
+out:
+	setenv("boardname", boardname);
+	printf("Variable 'boardname' set to '%s'\n", boardname);
+
+	return 0;
 }
 
 #if defined(CONFIG_CMD_NET)

@@ -11,6 +11,7 @@
 //#define EFUSE_VERSION 3
 #define EFUSE_SECURE_BOOT_SET 6
 #define EFUSE_INFO 7
+#define EFUSE_SET_PRODUCT 8
 
 int __aml_sec_boot_check_efuse(unsigned char *pSRC)
 {	
@@ -56,6 +57,8 @@ int cmd_efuse(int argc, char * const argv[], char *buf)
 		action=EFUSE_SECURE_BOOT_SET;
 	else if(strcmp(argv[1], "info") == 0)
 		action=EFUSE_INFO;
+	else if(strcmp(argv[1], "set_product") == 0)
+		action=EFUSE_SET_PRODUCT;
 	else{
 		printf("%s arg error\n", argv[1]);
 		return -1;
@@ -242,6 +245,27 @@ int cmd_efuse(int argc, char * const argv[], char *buf)
 		else
 			printf("cvbs hasn't calibrated\n");
 		return 0;
+	}
+	else if (EFUSE_SET_PRODUCT == action && argc == 3){
+		const char magic[] = {0xdd, 0xcc};
+		char version[8] = {0,};
+		loff_t off;
+
+		if (strcmp(argv[2], "m201") == 0)
+			version[0] = 1;
+		else if (strcmp(argv[2], "ec100") == 0)
+			version[0] = 2;
+		else {
+			printf("unrecognised product\n");
+			return -1;
+		}
+
+		off = 0x150;
+		efuse_write(magic, 2, &off);
+		off = 0x162;
+		efuse_write(version, 8, &off);
+
+		printf("Fused product code %d\n", version[0]);
 	}
 	else{
 		printf("arg error\n");

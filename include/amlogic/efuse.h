@@ -29,6 +29,8 @@ char *efuse_dump(void);
 unsigned efuse_readcustomerid(void);
 int efuse_set_versioninfo(efuseinfo_item_t *info);
 
+ssize_t efuse_read(char *buf, size_t count, loff_t *ppos );
+ssize_t efuse_write(const char *buf, size_t count, loff_t *ppos );
 int efuse_getinfo(char *title, efuseinfo_item_t *info);
 int efuse_read_usr(char *buf, size_t count, loff_t *ppos);
 int efuse_write_usr(char* buf, size_t count, loff_t* ppos);
