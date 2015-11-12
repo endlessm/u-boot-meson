@@ -255,6 +255,8 @@ int cmd_efuse(int argc, char * const argv[], char *buf)
 			version[0] = 1;
 		else if (strcmp(argv[2], "ec100") == 0)
 			version[0] = 2;
+		else if (strcmp(argv[2], "atv185") == 0)
+			version[0] = 3;
 		else {
 			printf("unrecognised product\n");
 			return -1;

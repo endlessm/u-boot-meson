@@ -48,6 +48,9 @@ int misc_init_r(void)
 	case 2:
 		boardname = "ec100";
 		break;
+	case 3:
+		boardname = "atv185";
+		break;
 	}
 
 out:
