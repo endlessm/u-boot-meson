@@ -406,7 +406,7 @@ static int get_reg_value_formOTP_hynix(struct hw_controller *controller, unsigne
 		goto error_exit1;
 	}
 
-	ret = operation->reset(aml_chip, chipnr);
+	ret = operation->reset(aml_chip, chipnr);
 
 	if(ret){
 		aml_nand_msg("reset chip failed chipnr:%d", chipnr);
@@ -516,7 +516,7 @@ static int get_reg_value_formOTP_hynix(struct hw_controller *controller, unsigne
 
 #endif
 
-	ret = operation->reset(aml_chip, chipnr);
+	ret = operation->reset(aml_chip, chipnr);
 
 	if(ret){
 		aml_nand_msg("reset chip failed chipnr:%d", chipnr);
