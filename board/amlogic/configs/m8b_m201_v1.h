@@ -281,7 +281,8 @@
     "loadbootenv=echo >>> Load Boot Script from mmc ${mmcbootdev}:1 <<<;ext4load mmc ${mmcbootdev}:1 0x11000000 /boot/uEnv.txt\0" \
     "importbootenv=echo >>> Importing environment from mmc ${mmcbootdev}:1 <<<;env import -t 0x11000000 ${filesize}\0" \
     "uenvbootcmd=ext4load mmc ${mmcbootdev}:1 ${loadaddr} /boot/${kernel_image};ext4load mmc ${mmcbootdev}:1 0x13000000 /boot/${ramdisk_image};bootm ${loadaddr}#${boardname} 0x13000000\0" \
-	"endlessboot=mmcinfo ${mmcbootdev}; run loadbootenv; run importbootenv; run uenvbootcmd\0"
+	"endlessboot=mmcinfo ${mmcbootdev}; run loadbootenv; run importbootenv; setenv bootargs ${bootargs} ${enable_debug}; run uenvbootcmd\0" \
+    "boot_debug=setenv enable_debug debug; run bootcmd\0"
 
 
 #define CONFIG_BOOTCOMMAND   "run endlessboot"
