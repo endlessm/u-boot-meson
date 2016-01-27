@@ -371,7 +371,7 @@
 
 //Please just define m8 DDR clock here only
 //current DDR clock range (408~804)MHz with fixed step 12MHz
-#define CFG_DDR_CLK    768 //696 //768  //792// (636)
+#define CFG_DDR_CLK    696 //696 //768  //792// (636)
 #define CFG_DDR_MODE   CFG_DDR_32BIT
 
 #ifdef CONFIG_ACS
