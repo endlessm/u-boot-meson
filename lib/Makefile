@@ -25,6 +25,7 @@ include $(TOPDIR)/config.mk
 
 LIB	= $(obj)libgeneric.o
 
+COBJS-$(CONFIG_LIB_UUID) += uuid.o
 COBJS-$(CONFIG_ADDR_MAP) += addr_map.o
 COBJS-$(CONFIG_BZIP2) += bzlib.o
 COBJS-$(CONFIG_BZIP2) += bzlib_crctable.o
@@ -51,6 +52,7 @@ COBJS-$(CONFIG_SHA256) += sha256.o
 COBJS-y += string.o
 COBJS-y	+= strmhz.o
 COBJS-y += time.o
+COBJS-$(CONFIG_BOOTP_PXE) += uuid.o
 COBJS-y += vsprintf.o
 #COBJS-$(CONFIG_ZLIB) += zlib.o
 COBJS-$(CONFIG_RBTREE)	+= rbtree.o
