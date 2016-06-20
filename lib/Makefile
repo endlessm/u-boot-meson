@@ -25,7 +25,7 @@ include $(TOPDIR)/config.mk
 
 LIB	= $(obj)libgeneric.o
 
-COBJS-$(CONFIG_PARTITION_UUIDS) += uuid.o
+COBJS-$(CONFIG_LIB_UUID) += uuid.o
 COBJS-$(CONFIG_ADDR_MAP) += addr_map.o
 COBJS-$(CONFIG_BZIP2) += bzlib.o
 COBJS-$(CONFIG_BZIP2) += bzlib_crctable.o

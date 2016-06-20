@@ -56,6 +56,7 @@
 #define CONFIG_CMD_PWM  1
 
 #define CONFIG_CMD_FS_UUID 1
+#define CONFIG_LIB_UUID 1
 
 //Enable storage devices
 //#define CONFIG_CMD_NAND  1

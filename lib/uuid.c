@@ -24,7 +24,6 @@
 #include <errno.h>
 #include <common.h>
 #include <asm/io.h>
-#include <part_efi.h>
 #include <malloc.h>
 
 /*
