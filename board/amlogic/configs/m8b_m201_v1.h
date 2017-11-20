@@ -287,7 +287,25 @@
     "sdc_burning=sdc_burn ${sdcburncfg}\0" \
     "loadbootenv=echo >>> Load Boot Script from mmc ${mmcbootdev}:1 <<<;ext4load mmc ${mmcbootdev}:1 0x11000000 /boot/uEnv.txt\0" \
     "importbootenv=echo >>> Importing environment from mmc ${mmcbootdev}:1 <<<;env import -t 0x11000000 ${filesize}\0" \
-    "uenvbootcmd=ext4load mmc ${mmcbootdev}:1 ${loadaddr} /boot/${kernel_image};ext4load mmc ${mmcbootdev}:1 0x13000000 /boot/${ramdisk_image};bootm ${loadaddr}#${boardname} 0x13000000\0" \
+    "uenvbootcmd=" \
+	"ext4load mmc ${mmcbootdev}:1 ${loadaddr} /boot/${kernel_image};ext4load mmc ${mmcbootdev}:1 0x13000000 /boot/${ramdisk_image}; "		/* load kernel and main ramdisk images			*/\
+	"setexpr mem_align ${filesize} % 4; "														/* we need to be ALGN(4)				*/\
+	"setexpr mem_align 4 - ${mem_align}; "														/* calculate the padding between the two ramdisk images	*/\
+	"setexpr ramdisk_main_end 0x13000000 + ${filesize}; "												/* calculate where the main ramdisk ends in memory	*/\
+	"setexpr ramdisk_append_start ${ramdisk_main_end} + ${mem_align}; "										/* the appended image goes after the end of the main
+																			   ramdisk + the padding				*/\
+	"ramdisk_size=${filesize}; " \
+	"setexpr ramdisk_size ${ramdisk_size} - 40; "													/* from the total size we need to subtract the size of
+																			   the U-Boot header that is still on top of the main
+																			   ramdisk image (64 bytes == 0x40 bytes)		*/\
+	"if ext4load mmc ${mmcbootdev}:1 ${ramdisk_append_start} /boot/initramfs-append; then "								/* at this location we load the appended ramdisk	*/\
+		"setexpr ramdisk_size ${ramdisk_size} + ${mem_align}; "											/* at this step the size of the concatenated images is
+																			   the size of the main ramdisk + padding		*/\
+		"setexpr ramdisk_size ${ramdisk_size} + ${filesize}; "											/* update the total size with the size of the appended
+																			   ramdisk just loaded					*/\
+		"mw.b ${ramdisk_main_end} 0 ${mem_align}; "												/* the padding space between the two images must be 0ed */\
+	"fi; " \
+	"bootm ${loadaddr}#${boardname} 0x13000040:${ramdisk_size};\0" \
     "getrootuuid=fsuuid mmc ${mmcbootdev}:1 rootuuid\0" \
 	"endlessboot=mmcinfo ${mmcbootdev}; run loadbootenv; run importbootenv; run getrootuuid; setenv bootargs root=UUID=${rootuuid} ${bootargs} ${enable_debug}; run uenvbootcmd\0" \
     "boot_debug=setenv enable_debug debug; run bootcmd\0" \
