@@ -73,6 +73,8 @@
 	#define CONFIG_CMD_MEMORY  1
 #endif /*CONFIG_CMD_SF*/
 
+#define CONFIG_SUPPORT_RAW_INITRD 1
+
 //Amlogic SARADC support
 //#define CONFIG_SARADC 1
 #define CONFIG_EFUSE 1
